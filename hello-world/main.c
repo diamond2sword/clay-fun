@@ -10,9 +10,10 @@ const Clay_Color COLOR_WHITE = (Clay_Color) {255, 255, 255, 255};
 const Clay_Color COLOR_BLACK = (Clay_Color) {0, 0, 0, 255};
 float animationLerpValue = -1.0f;
 
-Clay_RenderCommandArray CreateLayout(float lerpValue) {
+Clay_RenderCommandArray CreateLayout(bool mobileScreen, float lerpValue) {
     Clay_BeginLayout();
-    CLAY_TEXT(CLAY_STRING("Hello World!"), CLAY_TEXT_CONFIG({ .fontSize = 36, .fontId = FONT_ID_TEXT, .textColor = COLOR_WHITE }));
+    CLAY_TEXT(CLAY_STRING("Hello World!"), CLAY_TEXT_CONFIG({ .fontSize = 36 * lerpValue, .fontId = FONT_ID_TEXT, .textColor = COLOR_WHITE }));
+    CLAY_TEXT(CLAY_STRING("Hello World!"), CLAY_TEXT_CONFIG({ .fontSize = 36 * (1 - lerpValue), .fontId = FONT_ID_TEXT, .textColor = COLOR_WHITE }));
     return Clay_EndLayout();
 }
 
@@ -41,7 +42,14 @@ CLAY_WASM_EXPORT("UpdateDrawFrame") Clay_RenderCommandArray UpdateDrawFrame(floa
     Clay_SetPointerState((Clay_Vector2) {mousePositionX, mousePositionY}, isMouseDown || isTouchDown);
 
     Clay_UpdateScrollContainers(isTouchDown, (Clay_Vector2) {mouseWheelX, mouseWheelY}, deltaTime);
-    return CreateLayout( animationLerpValue < 0 ? (animationLerpValue + 1) : (1 - animationLerpValue));
+
+	bool isMobileScreen = windowWidth < 750;
+
+	if (debugModeEnabled) {
+        isMobileScreen = windowWidth < 950;
+    }
+
+    return CreateLayout(isMobileScreen, animationLerpValue < 0 ? (animationLerpValue + 1) : (1 - animationLerpValue));
     //----------------------------------------------------------------------------------
 }
 
