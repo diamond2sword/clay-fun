@@ -1,0 +1,3 @@
+/data/data/com.termux/files/home/clay-fun/tictactoe/CMakeFiles/clay_official_website.dir
+/data/data/com.termux/files/home/clay-fun/tictactoe/CMakeFiles/edit_cache.dir
+/data/data/com.termux/files/home/clay-fun/tictactoe/CMakeFiles/rebuild_cache.dir

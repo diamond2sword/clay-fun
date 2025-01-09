@@ -3,9 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, " />
-    <link rel="preload" href="/clay/fonts/JetBrainsMono-Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <title>Clay Website</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preload" href="/clay/fonts/Calistoga-Regular.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="/clay/fonts/Quicksand-Semibold.ttf" as="font" type="font/ttf" crossorigin>
+    <title>Clay - UI Layout Library</title>
     <style>
         html, body {
             width: 100%;
@@ -14,14 +15,21 @@
             padding: 0;
             margin: 0;
             pointer-events: none;
-            background: rgb(0, 0, 0);
+            background: rgb(244, 235, 230);
         }
         /* Import the font using @font-face */
-		@font-face {
-          font-family: 'JetBrainsMono';
+        @font-face {
+          font-family: 'Calistoga';
           font-style: normal;
           font-weight: 400;
-          src: url('/clay/fonts/JetBrainsMono-Regular.ttf') format('truetype');
+          src: url('/clay/fonts/Calistoga-Regular.ttf') format('truetype');
+        }
+
+        @font-face {
+          font-family: 'Quicksand';
+          font-style: normal;
+          font-weight: 400;
+          src: url('/clay/fonts/Quicksand-Semibold.ttf') format('truetype');
         }
 
         body > canvas {
@@ -33,7 +41,7 @@
         div, a, img {
             position: absolute;
             box-sizing: border-box;
-            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
             pointer-events: none;
         }
 

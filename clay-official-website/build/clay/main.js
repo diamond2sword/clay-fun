@@ -13,9 +13,12 @@ let heapSpaceAddress = 0;
 let memoryDataView;
 let textDecoder = new TextDecoder("utf-8");
 let previousFrameTime;
-let deltaTime;
 let fontsById = [
-	'JetBrainsMono',
+	'Quicksand',
+	'Calistoga',
+	'Quicksand',
+	'Quicksand',
+	'Quicksand',
 ];
 let elementCache = {};
 let imageCache = {};
@@ -111,6 +114,7 @@ function getStructTotalSize(definition) {
 		}
 		case 'float': return 4;
 		case 'uint32_t': return 4;
+		case 'int32_t': return 4;
 		case 'uint16_t': return 2;
 		case 'uint8_t': return 1;
 		case 'bool': return 1;
@@ -139,6 +143,7 @@ function readStructAtAddress(address, definition) {
 		}
 		case 'float': return { value: memoryDataView.getFloat32(address, true), __size: 4 };
 		case 'uint32_t': return { value: memoryDataView.getUint32(address, true), __size: 4 };
+		case 'int32_t': return { value: memoryDataView.getUint32(address, true), __size: 4 };
 		case 'uint16_t': return { value: memoryDataView.getUint16(address, true), __size: 2 };
 		case 'uint8_t': return { value: memoryDataView.getUint8(address, true), __size: 1 };
 		case 'bool': return { value: memoryDataView.getUint8(address, true), __size: 1 };
@@ -160,7 +165,6 @@ function createMainArena(arenaStructAddress, arenaMemoryAddress) {
 	// Last arg is address to store return value
 	instance.exports.Clay_CreateArenaWithCapacityAndMemory(arenaStructAddress, memorySize, arenaMemoryAddress);
 }
-
 async function init() {
 	await Promise.all(fontsById.map(f => document.fonts.load(`12px "${f}"`)));
 	window.htmlRoot = document.body.appendChild(document.createElement('div'));
@@ -183,6 +187,32 @@ async function init() {
 			window.mouseWheelYThisFrame = 0;
 		}, 10);
 	});
+	/*
+	function handleTouch (event) {
+		if (event.touches.length === 1) {
+			window.touchDown = true;
+			let target = event.target;
+			let scrollTop = 0;
+			let scrollLeft = 0;
+			let activeRendererIndex = memoryDataView.getUint32(instance.exports.ACTIVE_RENDERER_INDEX.value, true);
+			while (activeRendererIndex !== 1 && target) {
+				scrollLeft += target.scrollLeft;
+				scrollTop += target.scrollTop;
+				target = target.parentElement;
+			}
+			window.mousePositionXThisFrame = event.changedTouches[0].pageX + scrollLeft;
+			window.mousePositionYThisFrame = event.changedTouches[0].pageY + scrollTop;
+		}
+	}
+
+	document.addEventListener("touchstart", handleTouch);
+	document.addEventListener("touchmove", handleTouch);
+	document.addEventListener("touchend", () => {
+		window.touchDown = false;
+		window.mousePositionXThisFrame = 0;
+		window.mousePositionYThisFrame = 0;
+	})
+	*/
 
 	function handleTouch (event) {
 		if (event.touches.length === 1) {
@@ -210,18 +240,19 @@ async function init() {
 		window.touchDown = false;
 	});
 
+
 	document.addEventListener("mousemove", (event) => {
 		let target = event.target;
 		let scrollTop = 0;
 		let scrollLeft = 0;
-		while (target) {
+		let activeRendererIndex = memoryDataView.getUint32(instance.exports.ACTIVE_RENDERER_INDEX.value, true);
+		while (activeRendererIndex !== 1 && target) {
 			scrollLeft += target.scrollLeft;
 			scrollTop += target.scrollTop;
 			target = target.parentElement;
 		}
 		window.mousePositionXThisFrame = event.x + scrollLeft;
 		window.mousePositionYThisFrame = event.y + scrollTop;
-
 	});
 
 	document.addEventListener("mousedown", (event) => {
@@ -244,13 +275,6 @@ async function init() {
 			window.dKeyPressedThisFrame = true;
 		}
 	});
-
-	document.addEventListener('resize', () => {
-		for (const key of Object.keys(elementCache)) {
-			elementCache[key].element.remove();
-			delete elementCache[key];
-		}
-	})
 
 	const importObject = {
 		clay: {
@@ -299,8 +323,8 @@ function MemoryIsDifferent(one, two, length) {
 }
 
 function renderLoopHTML() {
-	let capacity = memoryDataView.getUint32(scratchSpaceAddress, true);
-	let length = memoryDataView.getUint32(scratchSpaceAddress + 4, true);
+	let capacity = memoryDataView.getInt32(scratchSpaceAddress, true);
+	let length = memoryDataView.getInt32(scratchSpaceAddress + 4, true);
 	let arrayOffset = memoryDataView.getUint32(scratchSpaceAddress + 8, true);
 	let scissorStack = [{ nextAllocation: { x: 0, y: 0 }, element: htmlRoot, nextElementIndex: 0 }];
 	let previousId = 0;
@@ -366,7 +390,8 @@ function renderLoopHTML() {
 			element.style.height = Math.round(renderCommand.boundingBox.height.value) + 'px';
 		}
 
-		switch(renderCommand.commandType.value) {
+		// note: commandType is packed to uint8_t and has 3 garbage bytes of padding
+		switch(renderCommand.commandType.value & 0xff) {
 			case (CLAY_RENDER_COMMAND_TYPE_NONE): {
 				break;
 			}
@@ -504,12 +529,217 @@ function renderLoopHTML() {
 	}
 }
 
+function renderLoopCanvas() {
+// Note: Rendering to canvas needs to be scaled up by window.devicePixelRatio in both width and height.
+// e.g. if we're working on a device where devicePixelRatio is 2, we need to render
+// everything at width^2 x height^2 resolution, then scale back down with css to get the correct pixel density.
+	let capacity = memoryDataView.getUint32(scratchSpaceAddress, true);
+	let length = memoryDataView.getUint32(scratchSpaceAddress + 4, true);
+	let arrayOffset = memoryDataView.getUint32(scratchSpaceAddress + 8, true);
+	window.canvasRoot.width = window.innerWidth * window.devicePixelRatio;
+	window.canvasRoot.height = window.innerHeight * window.devicePixelRatio;
+	window.canvasRoot.style.width = window.innerWidth + 'px';
+	window.canvasRoot.style.height = window.innerHeight + 'px';
+	let ctx = window.canvasContext;
+	let scale = window.devicePixelRatio;
+	for (let i = 0; i < length; i++, arrayOffset += renderCommandSize) {
+		let renderCommand = readStructAtAddress(arrayOffset, renderCommandDefinition);
+		let boundingBox = renderCommand.boundingBox;
+		
+		// note: commandType is packed to uint8_t and has 3 garbage bytes of padding
+		switch(renderCommand.commandType.value & 0xff) {
+			case (CLAY_RENDER_COMMAND_TYPE_NONE): {
+				break;
+			}
+			case (CLAY_RENDER_COMMAND_TYPE_RECTANGLE): {
+				let config = readStructAtAddress(renderCommand.config.value, rectangleConfigDefinition);
+				let color = config.color;
+				ctx.beginPath();
+				window.canvasContext.fillStyle = `rgba(${color.r.value}, ${color.g.value}, ${color.b.value}, ${color.a.value / 255})`;
+				window.canvasContext.roundRect(
+					boundingBox.x.value * scale, // x
+					boundingBox.y.value * scale, // y
+					boundingBox.width.value * scale, // width
+					boundingBox.height.value * scale,
+					[config.cornerRadius.topLeft.value * scale, config.cornerRadius.topRight.value * scale, config.cornerRadius.bottomRight.value * scale, config.cornerRadius.bottomLeft.value * scale]) // height;
+				ctx.fill();
+				ctx.closePath();
+				// Handle link clicks
+				let linkContents = config.link.length.value > 0 ? textDecoder.decode(new Uint8Array(memoryDataView.buffer.slice(config.link.chars.value, config.link.chars.value + config.link.length.value))) : 0;
+				memoryDataView.setUint32(0, renderCommand.id.value, true);
+				if (linkContents.length > 0 && (window.mouseDownThisFrame || window.touchDown) && instance.exports.Clay_PointerOver(0)) {
+					window.location.href = linkContents;
+				}
+				break;
+			}
+			case (CLAY_RENDER_COMMAND_TYPE_BORDER): {
+				let config = readStructAtAddress(renderCommand.config.value, borderConfigDefinition);
+				ctx.beginPath();
+				ctx.moveTo(boundingBox.x.value * scale, boundingBox.y.value * scale);
+				// Top Left Corner
+				if (config.cornerRadius.topLeft.value > 0) {
+					let lineWidth = config.top.width.value;
+					let halfLineWidth = lineWidth / 2;
+					ctx.moveTo((boundingBox.x.value + halfLineWidth) * scale, (boundingBox.y.value + config.cornerRadius.topLeft.value + halfLineWidth) * scale);
+					let color = config.top.color;
+					ctx.lineWidth = lineWidth * scale;
+					ctx.strokeStyle = `rgba(${color.r.value}, ${color.g.value}, ${color.b.value}, ${color.a.value / 255})`;
+					ctx.arcTo((boundingBox.x.value + halfLineWidth) * scale, (boundingBox.y.value + halfLineWidth) * scale, (boundingBox.x.value + config.cornerRadius.topLeft.value + halfLineWidth) * scale, (boundingBox.y.value + halfLineWidth) * scale, config.cornerRadius.topLeft.value * scale);
+					ctx.stroke();
+				}
+				// Top border
+				if (config.top.width.value > 0) {
+					let lineWidth = config.top.width.value;
+					let halfLineWidth = lineWidth / 2;
+					let color = config.top.color;
+					ctx.lineWidth = lineWidth * scale;
+					ctx.strokeStyle = `rgba(${color.r.value}, ${color.g.value}, ${color.b.value}, ${color.a.value / 255})`;
+					ctx.moveTo((boundingBox.x.value + config.cornerRadius.topLeft.value + halfLineWidth) * scale, (boundingBox.y.value + halfLineWidth) * scale);
+					ctx.lineTo((boundingBox.x.value + boundingBox.width.value - config.cornerRadius.topRight.value - halfLineWidth) * scale, (boundingBox.y.value + halfLineWidth) * scale);
+					ctx.stroke();
+				}
+				// Top Right Corner
+				if (config.cornerRadius.topRight.value > 0) {
+					let lineWidth = config.top.width.value;
+					let halfLineWidth = lineWidth / 2;
+					ctx.moveTo((boundingBox.x.value + boundingBox.width.value - config.cornerRadius.topRight.value - halfLineWidth) * scale, (boundingBox.y.value + halfLineWidth) * scale);
+					let color = config.top.color;
+					ctx.lineWidth = lineWidth * scale;
+					ctx.strokeStyle = `rgba(${color.r.value}, ${color.g.value}, ${color.b.value}, ${color.a.value / 255})`;
+					ctx.arcTo((boundingBox.x.value + boundingBox.width.value - halfLineWidth) * scale, (boundingBox.y.value + halfLineWidth) * scale, (boundingBox.x.value + boundingBox.width.value - halfLineWidth) * scale, (boundingBox.y.value + config.cornerRadius.topRight.value + halfLineWidth) * scale, config.cornerRadius.topRight.value * scale);
+					ctx.stroke();
+				}
+				// Right border
+				if (config.right.width.value > 0) {
+					let color = config.right.color;
+					let lineWidth = config.right.width.value;
+					let halfLineWidth = lineWidth / 2;
+					ctx.lineWidth = lineWidth * scale;
+					ctx.strokeStyle = `rgba(${color.r.value}, ${color.g.value}, ${color.b.value}, ${color.a.value / 255})`;
+					ctx.moveTo((boundingBox.x.value + boundingBox.width.value - halfLineWidth) * scale, (boundingBox.y.value + config.cornerRadius.topRight.value + halfLineWidth) * scale);
+					ctx.lineTo((boundingBox.x.value + boundingBox.width.value - halfLineWidth) * scale, (boundingBox.y.value + boundingBox.height.value - config.cornerRadius.topRight.value - halfLineWidth) * scale);
+					ctx.stroke();
+				}
+				// Bottom Right Corner
+				if (config.cornerRadius.bottomRight.value > 0) {
+					let color = config.top.color;
+					let lineWidth = config.top.width.value;
+					let halfLineWidth = lineWidth / 2;
+					ctx.moveTo((boundingBox.x.value + boundingBox.width.value - halfLineWidth) * scale, (boundingBox.y.value + boundingBox.height.value - config.cornerRadius.bottomRight.value - halfLineWidth) * scale);
+					ctx.lineWidth = lineWidth * scale;
+					ctx.strokeStyle = `rgba(${color.r.value}, ${color.g.value}, ${color.b.value}, ${color.a.value / 255})`;
+					ctx.arcTo((boundingBox.x.value + boundingBox.width.value - halfLineWidth) * scale, (boundingBox.y.value + boundingBox.height.value - halfLineWidth) * scale, (boundingBox.x.value + boundingBox.width.value - config.cornerRadius.bottomRight.value - halfLineWidth) * scale, (boundingBox.y.value + boundingBox.height.value - halfLineWidth) * scale, config.cornerRadius.bottomRight.value * scale);
+					ctx.stroke();
+				}
+				// Bottom Border
+				if (config.bottom.width.value > 0) {
+					let color = config.bottom.color;
+					let lineWidth = config.bottom.width.value;
+					let halfLineWidth = lineWidth / 2;
+					ctx.lineWidth = lineWidth * scale;
+					ctx.strokeStyle = `rgba(${color.r.value}, ${color.g.value}, ${color.b.value}, ${color.a.value / 255})`;
+					ctx.moveTo((boundingBox.x.value + config.cornerRadius.bottomLeft.value + halfLineWidth) * scale, (boundingBox.y.value + boundingBox.height.value - halfLineWidth) * scale);
+					ctx.lineTo((boundingBox.x.value + boundingBox.width.value - config.cornerRadius.bottomRight.value - halfLineWidth) * scale, (boundingBox.y.value + boundingBox.height.value - halfLineWidth) * scale);
+					ctx.stroke();
+				}
+				// Bottom Left Corner
+				if (config.cornerRadius.bottomLeft.value > 0) {
+					let color = config.bottom.color;
+					let lineWidth = config.bottom.width.value;
+					let halfLineWidth = lineWidth / 2;
+					ctx.moveTo((boundingBox.x.value + config.cornerRadius.bottomLeft.value + halfLineWidth) * scale, (boundingBox.y.value + boundingBox.height.value - halfLineWidth) * scale);
+					ctx.lineWidth = lineWidth * scale;
+					ctx.strokeStyle = `rgba(${color.r.value}, ${color.g.value}, ${color.b.value}, ${color.a.value / 255})`;
+					ctx.arcTo((boundingBox.x.value + halfLineWidth) * scale, (boundingBox.y.value + boundingBox.height.value - halfLineWidth) * scale, (boundingBox.x.value + halfLineWidth) * scale, (boundingBox.y.value + boundingBox.height.value - config.cornerRadius.bottomLeft.value - halfLineWidth) * scale, config.cornerRadius.bottomLeft.value * scale);
+					ctx.stroke();
+				}
+				// Left Border
+				if (config.left.width.value > 0) {
+					let color = config.left.color;
+					let lineWidth = config.left.width.value;
+					let halfLineWidth = lineWidth / 2;
+					ctx.lineWidth = lineWidth * scale;
+					ctx.strokeStyle = `rgba(${color.r.value}, ${color.g.value}, ${color.b.value}, ${color.a.value / 255})`;
+					ctx.moveTo((boundingBox.x.value + halfLineWidth) * scale, (boundingBox.y.value + boundingBox.height.value - config.cornerRadius.bottomLeft.value - halfLineWidth) * scale);
+					ctx.lineTo((boundingBox.x.value + halfLineWidth) * scale, (boundingBox.y.value + config.cornerRadius.bottomRight.value + halfLineWidth) * scale);
+					ctx.stroke();
+				}
+				ctx.closePath();
+				break;
+			}
+			case (CLAY_RENDER_COMMAND_TYPE_TEXT): {
+				let config = readStructAtAddress(renderCommand.config.value, textConfigDefinition);
+				let textContents = renderCommand.text;
+				let stringContents = new Uint8Array(memoryDataView.buffer.slice(textContents.chars.value, textContents.chars.value + textContents.length.value));
+				let fontSize = config.fontSize.value * GLOBAL_FONT_SCALING_FACTOR * scale;
+				ctx.font = `${fontSize}px ${fontsById[config.fontId.value]}`;
+				let color = config.textColor;
+				ctx.textBaseline = 'middle';
+				ctx.fillStyle = `rgba(${color.r.value}, ${color.g.value}, ${color.b.value}, ${color.a.value / 255})`;
+				ctx.fillText(textDecoder.decode(stringContents), boundingBox.x.value * scale, (boundingBox.y.value + boundingBox.height.value / 2 + 1) * scale);
+				break;
+			}
+			case (CLAY_RENDER_COMMAND_TYPE_SCISSOR_START): {
+				window.canvasContext.save();
+				window.canvasContext.beginPath();
+				window.canvasContext.rect(boundingBox.x.value * scale, boundingBox.y.value * scale, boundingBox.width.value * scale, boundingBox.height.value * scale);
+				window.canvasContext.clip();
+				window.canvasContext.closePath();
+				break;
+			}
+			case (CLAY_RENDER_COMMAND_TYPE_SCISSOR_END): {
+				window.canvasContext.restore();
+				break;
+			}
+			case (CLAY_RENDER_COMMAND_TYPE_IMAGE): {
+				let config = readStructAtAddress(renderCommand.config.value, imageConfigDefinition);
+				let src = textDecoder.decode(new Uint8Array(memoryDataView.buffer.slice(config.sourceURL.chars.value, config.sourceURL.chars.value + config.sourceURL.length.value)));
+				if (!imageCache[src]) {
+					imageCache[src] = {
+						image: new Image(),
+						loaded: false,
+					}
+					imageCache[src].image.onload = () => imageCache[src].loaded = true;
+					imageCache[src].image.src = src;
+				} else if (imageCache[src].loaded) {
+					ctx.drawImage(imageCache[src].image, boundingBox.x.value * scale, boundingBox.y.value * scale, boundingBox.width.value * scale, boundingBox.height.value * scale);
+				}
+				break;
+			}
+			case (CLAY_RENDER_COMMAND_TYPE_CUSTOM): break;
+		}
+	}
+}
 
 function renderLoop(currentTime) {
-	deltaTime = (currentTime - previousFrameTime) / 1000
+	const elapsed = currentTime - previousFrameTime;
 	previousFrameTime = currentTime;
-	instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, 0, 0, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, 0, 0, window.dKeyPressedThisFrame, deltaTime);
-	renderLoopHTML();
+	let activeRendererIndex = memoryDataView.getUint32(instance.exports.ACTIVE_RENDERER_INDEX.value, true);
+	if (activeRendererIndex === 0) {
+		instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, 0, 0, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, 0, 0, window.dKeyPressedThisFrame, elapsed / 1000);
+	} else {
+		instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, window.mouseWheelXThisFrame, window.mouseWheelYThisFrame, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, window.arrowKeyDownPressedThisFrame, window.arrowKeyUpPressedThisFrame, window.dKeyPressedThisFrame, elapsed / 1000);
+	}
+	let rendererChanged = activeRendererIndex !== window.previousActiveRendererIndex;
+	switch (activeRendererIndex) {
+		case 0: {
+			renderLoopHTML();
+			if (rendererChanged) {
+				window.htmlRoot.style.display = 'block';
+				window.canvasRoot.style.display = 'none';
+			}
+			break;
+		}
+		case 1: {
+			renderLoopCanvas();
+			if (rendererChanged) {
+				window.htmlRoot.style.display = 'none';
+				window.canvasRoot.style.display = 'block';
+			}
+			break;
+		}
+	}
+	window.previousActiveRendererIndex = activeRendererIndex;
 	requestAnimationFrame(renderLoop);
 	window.mouseDownThisFrame = false;
 	window.arrowKeyUpPressedThisFrame = false;

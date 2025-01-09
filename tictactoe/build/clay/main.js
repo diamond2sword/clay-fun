@@ -13,6 +13,7 @@ let heapSpaceAddress = 0;
 let memoryDataView;
 let textDecoder = new TextDecoder("utf-8");
 let previousFrameTime;
+let deltaTime;
 let fontsById = [
 	'JetBrainsMono',
 ];
@@ -159,6 +160,7 @@ function createMainArena(arenaStructAddress, arenaMemoryAddress) {
 	// Last arg is address to store return value
 	instance.exports.Clay_CreateArenaWithCapacityAndMemory(arenaStructAddress, memorySize, arenaMemoryAddress);
 }
+
 async function init() {
 	await Promise.all(fontsById.map(f => document.fonts.load(`12px "${f}"`)));
 	window.htmlRoot = document.body.appendChild(document.createElement('div'));
@@ -198,13 +200,15 @@ async function init() {
 		}
 	}
 
-	document.addEventListener("touchstart", handleTouch);
-	document.addEventListener("touchmove", handleTouch);
-	document.addEventListener("touchend", () => {
-		window.touchDown = false;
+	document.addEventListener("touchstart", (event) => {
 		window.mousePositionXThisFrame = 0;
 		window.mousePositionYThisFrame = 0;
-	})
+		handleTouch(event);
+	});
+	document.addEventListener("touchmove", handleTouch);
+	document.addEventListener("touchend", (event) => {
+		window.touchDown = false;
+	});
 
 	document.addEventListener("mousemove", (event) => {
 		let target = event.target;
@@ -217,6 +221,7 @@ async function init() {
 		}
 		window.mousePositionXThisFrame = event.x + scrollLeft;
 		window.mousePositionYThisFrame = event.y + scrollTop;
+
 	});
 
 	document.addEventListener("mousedown", (event) => {
@@ -240,9 +245,15 @@ async function init() {
 		}
 	});
 
+	document.addEventListener('resize', () => {
+		for (const key of Object.keys(elementCache)) {
+			elementCache[key].element.remove();
+			delete elementCache[key];
+		}
+	})
+
 	const importObject = {
 		clay: {
-
 			measureTextFunction: (addressOfDimensions, textToMeasure, addressOfConfig) => {
 				let stringLength = memoryDataView.getUint32(textToMeasure, true);
 				let pointerToString = memoryDataView.getUint32(textToMeasure + 4, true);
@@ -493,11 +504,11 @@ function renderLoopHTML() {
 	}
 }
 
-function renderLoop(currentTime) {
-	const elapsed = currentTime - previousFrameTime;
-	previousFrameTime = currentTime;
 
-	instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, 0, 0, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, 0, 0, window.dKeyPressedThisFrame, elapsed / 1000);
+function renderLoop(currentTime) {
+	deltaTime = (currentTime - previousFrameTime) / 1000
+	previousFrameTime = currentTime;
+	instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, 0, 0, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, 0, 0, window.dKeyPressedThisFrame, deltaTime);
 	renderLoopHTML();
 	requestAnimationFrame(renderLoop);
 	window.mouseDownThisFrame = false;

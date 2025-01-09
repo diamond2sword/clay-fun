@@ -1,0 +1,1 @@
+/data/data/com.termux/files/usr/bin/cc -O2 -g -DNDEBUG -Xlinker --dependency-file -Xlinker CMakeFiles/clay_official_website.dir/link.d CMakeFiles/clay_official_website.dir/main.c.o -o clay_official_website
