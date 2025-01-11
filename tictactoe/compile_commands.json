@@ -1,8 +1,0 @@
-[
-{
-  "directory": "/data/data/com.termux/files/home/clay-fun/tictactoe",
-  "command": "/data/data/com.termux/files/usr/bin/cc  -I/data/data/com.termux/files/home/clay-fun/tictactoe/. -O2 -g -DNDEBUG -std=gnu99 -Wall -Werror -Wno-unknown-pragmas -Wno-error=missing-braces -o CMakeFiles/clay_official_website.dir/main.c.o -c /data/data/com.termux/files/home/clay-fun/tictactoe/main.c",
-  "file": "/data/data/com.termux/files/home/clay-fun/tictactoe/main.c",
-  "output": "CMakeFiles/clay_official_website.dir/main.c.o"
-}
-]

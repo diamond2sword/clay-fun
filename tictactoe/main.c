@@ -60,6 +60,7 @@
 		} \
 	}
 
+/*
 #define CLAY_CLICK_HANDLER2(name, __VA_ARGS__2, ...) \
 	float clickHandler_##name##_clickWaitTime; \
 	bool clickHandler_##name##_isHovered; \
@@ -87,9 +88,47 @@
 		} \
 		else if (enabled) \
 		{ \
-			{__VA_ARGS__2} \
+			__VA_ARGS__2 \
 			clickHandler_##name##_isHovered = false; \
 			enabled = false; \
+		} \
+	}
+*/
+
+#define CLAY_CLICK_HANDLER2(name, __VA_ARGS__2, ...) \
+	float clickHandler_##name##_beforeClickWaitTime; \
+	ClickPhase clickHandler_##name##_clickPhase; \
+	Clay_ElementId clickHandler_##name##_elementId; \
+	void handle_##name##_clickInteraction(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) \
+	{ \
+		if (pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME \
+		|| pointerInfo.state == CLAY_POINTER_DATA_PRESSED) \
+		{ \
+			{__VA_ARGS__} \
+			clickHandler_##name##_clickPhase = CLICK_PHASE_PRESSED_THIS_FRAME; \
+			clickHandler_##name##_elementId = elementId; \
+			clickHandler_##name##_beforeClickWaitTime = currentTime + MAX(0.01f, averageDeltaTime * 2); \
+		} \
+	} \
+	void listen_##name##_click() { \
+		static float mousePos2_waitTime; \
+		if (clickHandler_##name##_beforeClickWaitTime > currentTime) \
+		{ \
+			clickHandler_##name##_clickPhase = CLICK_PHASE_PRESSED; \
+		} \
+		else if (clickHandler_##name##_clickPhase == CLICK_PHASE_PRESSED) \
+		{ \
+			clickHandler_##name##_clickPhase = CLICK_PHASE_CHECK_POS_THIS_FRAME; \
+			mousePos2_waitTime = currentTime + MAX(0.01f, averageDeltaTime * 2); \
+		} \
+		else if (mousePos2_waitTime > currentTime) \
+		{ \
+			clickHandler_##name##_clickPhase = CLICK_PHASE_CHECK_POS; \
+		} \
+		else if (clickHandler_##name##_clickPhase == CLICK_PHASE_CHECK_POS) \
+		{ \
+			__VA_ARGS__2 \
+			clickHandler_##name##_clickPhase = CLICK_PHASE_NONE; \
 		} \
 	}
 
@@ -105,6 +144,15 @@
 #define CLAY_EXTEND_CONFIG_TEXT bool disablePointerEvents;
 #define CLAY_IMPLEMENTATION
 #include "../clay/clay.h"
+
+
+typedef enum : uint8_t {
+	CLICK_PHASE_NONE,
+	CLICK_PHASE_PRESSED_THIS_FRAME,
+	CLICK_PHASE_PRESSED,
+	CLICK_PHASE_CHECK_POS_THIS_FRAME,
+	CLICK_PHASE_CHECK_POS,
+} ClickPhase;
 
 uint32_t CLAY_LABEL_INDEX = 0;
 
@@ -189,36 +237,40 @@ void updateWinner(ActivePlayer value) {
 }
 
 uint8_t MOVE_COUNTER = 0;
+float currentTime;
 float deltaTime;
-
+float averageDeltaTime;
 
 
 CLAY_CLICK_HANDLER(end);
 CLAY_CLICK_HANDLER(winner);
-CLAY_CLICK_HANDLER(playAgain,
-	for (int i = 0; i < 9; i++) BOARD[i] = 0;
-	WINNER = ACTIVE_PLAYER_NONE;
-	MOVE_COUNTER = 0;
-	ACTIVE_PLAYER = ACTIVE_PLAYER_X;
-);
+CLAY_CLICK_HANDLER2(playAgain, {
+	if (Clay_PointerOver(clickHandler_playAgain_elementId))
+	{
+		for (int i = 0; i < 9; i++) BOARD[i] = 0;
+		WINNER = ACTIVE_PLAYER_NONE;
+		MOVE_COUNTER = 0;
+		ACTIVE_PLAYER = ACTIVE_PLAYER_X;
+	}
+});
 
 int8_t CELL_MARK_INDEX = -1;
-CLAY_CLICK_HANDLER2(cellMark, WRAP_VA_ARGS(
-	if (!WINNER && !BOARD[CELL_MARK_INDEX])
+CLAY_CLICK_HANDLER2(cellMark, {
+	if (!WINNER && !BOARD[CELL_MARK_INDEX] && Clay_PointerOver(clickHandler_cellMark_elementId))
 	{
 		BOARD[CELL_MARK_INDEX] = ACTIVE_PLAYER;
 		updateWinner(ACTIVE_PLAYER);
 		ACTIVE_PLAYER = ACTIVE_PLAYER == ACTIVE_PLAYER_X ? ACTIVE_PLAYER_O : ACTIVE_PLAYER_X;
 		MOVE_COUNTER++;
 	}
-),
+},
 	CELL_MARK_INDEX = userData;
 );
 
 int8_t CELL_HOVER_INDEX = -1;
-CLAY_CLICK_HANDLER2(cellHighlight, WRAP_VA_ARGS(
+CLAY_CLICK_HANDLER2(cellHighlight, {
 	CELL_HOVER_INDEX = -1;
-),
+},
 	CELL_HOVER_INDEX = userData;
 );
 
@@ -256,9 +308,9 @@ void TictactoeWinner() {
 
 void TictactoePlayAgain() {
 	CLAY_BOX(CLAY_ID("TictactoePlayAgain"), 
-		Color_AsFaded(clickHandler_playAgain_isHovered
+		Color_AsFaded(clickHandler_playAgain_clickPhase
 			? COLOR_BLACK : COLOR_GREEN),
-		Color_AsFaded(clickHandler_playAgain_isHovered
+		Color_AsFaded(clickHandler_playAgain_clickPhase
 			? COLOR_WHITE : COLOR_RED),
 		lineWidth,
 		lineWidth,
@@ -267,14 +319,14 @@ void TictactoePlayAgain() {
 			{lineWidth, lineWidth}
 		}),
 		Clay_OnHover(handle_playAgain_clickInteraction, 0),
-		listen_playAgain_clickWaitTime()
+		listen_playAgain_click()
 	) {
 		CLAY_LABEL_OR_HOVERED("TictactoePlayAgain",
 			CLAY_FLOATING({
 				.attachment={CLAY_ATTACH_POINT_CENTER_BOTTOM, CLAY_ATTACH_POINT_CENTER_TOP},
 				.pointerCaptureMode=CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH
 			}),
-			clickHandler_playAgain_isHovered
+			clickHandler_playAgain_clickPhase
 		);
 		NORMAL_TEXT("Play Again");
 	}
@@ -308,15 +360,15 @@ void TictactoeGrid() {
 		COLOR_WHITE, COLOR_BLACK,
 		lineWidth, lineWidth, 
 		CLAY_FLOATING(),
-		listen_cellHighlight_clickWaitTime(),
-		listen_cellMark_clickWaitTime()
+		listen_cellHighlight_click(),
+		listen_cellMark_click()
 	) {
 		CLAY_LABEL_OR_HOVERED("TictactoeGrid", 
 			CLAY_FLOATING({
 				.attachment={CLAY_ATTACH_POINT_CENTER_BOTTOM, CLAY_ATTACH_POINT_CENTER_TOP},
 				.pointerCaptureMode=CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH
 			}),
-			clickHandler_cellHighlight_isHovered
+			clickHandler_cellHighlight_clickPhase
 		);
 		CLAY(CLAY_LAYOUT({sizingGrow, .layoutDirection=CLAY_TOP_TO_BOTTOM})) {for (int row = 0; row < 3; row++)
 		{
@@ -372,10 +424,39 @@ Clay_RenderCommandArray CreateLayout(bool mobileScreen, float lerpValue) {
 }
 
 bool debugModeEnabled = false;
-float previousFrameTime = 0;
 
-CLAY_WASM_EXPORT("UpdateDrawFrame") Clay_RenderCommandArray UpdateDrawFrame(float width, float height, float mouseWheelX, float mouseWheelY, float mousePositionX, float mousePositionY, bool isTouchDown, bool isMouseDown, bool arrowKeyDownPressedThisFrame, bool arrowKeyUpPressedThisFrame, bool dKeyPressedThisFrame, float __deltaTime) {
+#define N_STEPS_AVERAGE_DELTA_TIME_CYCLE 5
+void updateAverageDeltaTime()
+{
+	static float cycleData[N_STEPS_AVERAGE_DELTA_TIME_CYCLE] = {0};
+	static int cycleIndex = 0;
+	static bool isPopulated = false;
+	float deltaTimeSum = 0;
+	if (isPopulated)
+	{
+		for (int i = 0; i < N_STEPS_AVERAGE_DELTA_TIME_CYCLE; i++)
+		{
+			deltaTimeSum += cycleData[i];
+		}
+	}
+	else
+	{
+		for (int i = 0; i <= cycleIndex; i++)
+		{
+			deltaTimeSum += cycleData[i];
+		}
+		isPopulated = cycleIndex + 1 == N_STEPS_AVERAGE_DELTA_TIME_CYCLE;
+	}
+	averageDeltaTime = deltaTimeSum / N_STEPS_AVERAGE_DELTA_TIME_CYCLE;
+	cycleData[cycleIndex] = deltaTime;
+	cycleIndex = cycleIndex + 1 == N_STEPS_AVERAGE_DELTA_TIME_CYCLE ? 0 : cycleIndex + 1;
+}
+
+CLAY_WASM_EXPORT("UpdateDrawFrame") Clay_RenderCommandArray UpdateDrawFrame(float width, float height, float mouseWheelX, float mouseWheelY, float mousePositionX, float mousePositionY, bool isTouchDown, bool isMouseDown, bool arrowKeyDownPressedThisFrame, bool arrowKeyUpPressedThisFrame, bool dKeyPressedThisFrame, float __currentTime, float __deltaTime) {
+	currentTime = __currentTime;
 	deltaTime = __deltaTime;
+	updateAverageDeltaTime();
+	
     windowWidth = width;
     windowHeight = height;
     Clay_SetLayoutDimensions((Clay_Dimensions) { width, height });

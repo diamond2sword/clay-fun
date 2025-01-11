@@ -1,3 +1,5 @@
+import { FastClick } from 'fastclick';
+
 const CLAY_RENDER_COMMAND_TYPE_NONE = 0;
 const CLAY_RENDER_COMMAND_TYPE_RECTANGLE = 1;
 const CLAY_RENDER_COMMAND_TYPE_BORDER = 2;
@@ -18,7 +20,6 @@ let fontsById = [
 	'JetBrainsMono',
 ];
 let elementCache = {};
-let imageCache = {};
 let colorDefinition = { type: 'struct', members: [
 	{name: 'r', type: 'float' },
 	{name: 'g', type: 'float' },
@@ -161,6 +162,7 @@ function createMainArena(arenaStructAddress, arenaMemoryAddress) {
 	instance.exports.Clay_CreateArenaWithCapacityAndMemory(arenaStructAddress, memorySize, arenaMemoryAddress);
 }
 
+
 async function init() {
 	await Promise.all(fontsById.map(f => document.fonts.load(`12px "${f}"`)));
 	window.htmlRoot = document.body.appendChild(document.createElement('div'));
@@ -186,7 +188,6 @@ async function init() {
 
 	function handleTouch (event) {
 		if (event.touches.length === 1) {
-			window.touchDown = true;
 			let target = event.target;
 			let scrollTop = 0;
 			let scrollLeft = 0;
@@ -198,18 +199,27 @@ async function init() {
 			window.mousePositionXThisFrame = event.changedTouches[0].pageX + scrollLeft;
 			window.mousePositionYThisFrame = event.changedTouches[0].pageY + scrollTop;
 		}
+		window.touchDown = true;
 	}
 
+	/*
+	document.addEventListener("load", () => {
+		FastClick.attach(document.body);
+	});
+	*/
+
+	document.addEventListener("touchmove", handleTouch);
+	
 	document.addEventListener("touchstart", (event) => {
 		window.mousePositionXThisFrame = 0;
 		window.mousePositionYThisFrame = 0;
 		handleTouch(event);
-	});
-	document.addEventListener("touchmove", handleTouch);
+	});	
+
 	document.addEventListener("touchend", (event) => {
 		window.touchDown = false;
 	});
-
+	
 	document.addEventListener("mousemove", (event) => {
 		let target = event.target;
 		let scrollTop = 0;
@@ -223,6 +233,7 @@ async function init() {
 		window.mousePositionYThisFrame = event.y + scrollTop;
 
 	});
+
 
 	document.addEventListener("mousedown", (event) => {
 		window.mouseDown = true;
@@ -504,11 +515,15 @@ function renderLoopHTML() {
 	}
 }
 
-
 function renderLoop(currentTime) {
-	deltaTime = (currentTime - previousFrameTime) / 1000
+	currentTime /= 1000;
+	currentTime = currentTime;
+	deltaTime = currentTime - previousFrameTime;
 	previousFrameTime = currentTime;
-	instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, 0, 0, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, 0, 0, window.dKeyPressedThisFrame, deltaTime);
+
+	instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, 0, 0, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, 0, 0, window.dKeyPressedThisFrame, currentTime, deltaTime);
+
+
 	renderLoopHTML();
 	requestAnimationFrame(renderLoop);
 	window.mouseDownThisFrame = false;
