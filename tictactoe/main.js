@@ -1,5 +1,3 @@
-import { FastClick } from 'fastclick';
-
 const CLAY_RENDER_COMMAND_TYPE_NONE = 0;
 const CLAY_RENDER_COMMAND_TYPE_RECTANGLE = 1;
 const CLAY_RENDER_COMMAND_TYPE_BORDER = 2;
@@ -202,11 +200,6 @@ async function init() {
 		window.touchDown = true;
 	}
 
-	/*
-	document.addEventListener("load", () => {
-		FastClick.attach(document.body);
-	});
-	*/
 
 	document.addEventListener("touchmove", handleTouch);
 	
@@ -218,6 +211,10 @@ async function init() {
 
 	document.addEventListener("touchend", (event) => {
 		window.touchDown = false;
+	});
+	
+	document.addEventListener("touchcancel", (event) => {
+		alert("touchcancel");
 	});
 	
 	document.addEventListener("mousemove", (event) => {
@@ -261,7 +258,7 @@ async function init() {
 			elementCache[key].element.remove();
 			delete elementCache[key];
 		}
-	})
+	});
 
 	const importObject = {
 		clay: {
@@ -466,7 +463,10 @@ function renderLoopHTML() {
 					element.style.color = `rgba(${textColor.r.value}, ${textColor.g.value}, ${textColor.b.value}, ${textColor.a.value})`;
 					element.style.fontFamily = fontsById[config.fontId.value];
 					element.style.fontSize = fontSize + 'px';
-					element.style.pointerEvents = config.disablePointerEvents.value ? 'none' : 'all';
+					if (config.disablePointerEvents.value) {
+						element.style.pointerEvents ='none';
+						element.style.touchAction ='none';
+					}
 					elementData.previousMemoryConfig = configMemory;
 				}
 				if (stringContents.length !== elementData.previousMemoryText.length || MemoryIsDifferent(stringContents, elementData.previousMemoryText, stringContents.length)) {
@@ -517,12 +517,10 @@ function renderLoopHTML() {
 
 function renderLoop(currentTime) {
 	currentTime /= 1000;
-	currentTime = currentTime;
 	deltaTime = currentTime - previousFrameTime;
 	previousFrameTime = currentTime;
 
 	instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, 0, 0, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, 0, 0, window.dKeyPressedThisFrame, currentTime, deltaTime);
-
 
 	renderLoopHTML();
 	requestAnimationFrame(renderLoop);
