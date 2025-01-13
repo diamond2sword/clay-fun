@@ -1,0 +1,341 @@
+0a1
+> #include <stdint.h>
+11,12d11
+< 	Clay_FloatingElementConfig floatingConfig = {.pointerCaptureMode=CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH}; \
+< 	Clay_RectangleElementConfig rectangleConfig = {Color_AsFaded(COLOR_BLACK), CLAY_CORNER_RADIUS(lineWidth)}; \
+14a14
+> 		CLAY_RECTANGLE({Color_AsFaded(COLOR_BLACK), CLAY_CORNER_RADIUS(lineWidth)}),  \
+16,17c16
+< 		CLAY_RECTANGLE(rectangleConfig),  \
+< 		CLAY_FLOATING(floatingConfig) \
+---
+> 		CLAY_FLOATING({.pointerCaptureMode=CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH}) \
+33,100c32
+< #define CLAY_CLICK_HANDLER(name, ...) \
+< 	float clickHandler_##name##_clickWaitTime; \
+< 	bool clickHandler_##name##_isHovered; \
+< 	void handle_##name##_clickInteraction(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) \
+< 	{ \
+< 		if (pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME \
+< 		|| pointerInfo.state == CLAY_POINTER_DATA_PRESSED) \
+< 		{ \
+< 			clickHandler_##name##_clickWaitTime = 0.001f; \
+< 			clickHandler_##name##_isHovered = true; \
+< 		} \
+< 	} \
+< 	void listen_##name##_clickWaitTime() { \
+< 		static bool enabled = false; \
+< 		static float startTime; \
+< 		if (clickHandler_##name##_clickWaitTime > 0) \
+< 		{ \
+< 			if (!enabled) \
+< 			{ \
+< 				startTime = clickHandler_##name##_clickWaitTime; \
+< 				enabled = true; \
+< 			} \
+< 			clickHandler_##name##_clickWaitTime -= MIN(startTime * 0.3f, deltaTime); \
+< 		} \
+< 		else if (enabled) \
+< 		{ \
+< 			{__VA_ARGS__} \
+< 			clickHandler_##name##_isHovered = false; \
+< 			enabled = false; \
+< 		} \
+< 	}
+< 
+< /*
+< #define CLAY_CLICK_HANDLER2(name, __VA_ARGS__2, ...) \
+< 	float clickHandler_##name##_clickWaitTime; \
+< 	bool clickHandler_##name##_isHovered; \
+< 	void handle_##name##_clickInteraction(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) \
+< 	{ \
+< 		if (pointerInfo.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME \
+< 		|| pointerInfo.state == CLAY_POINTER_DATA_PRESSED) \
+< 		{ \
+< 			clickHandler_##name##_clickWaitTime = 0.001f; \
+< 			{__VA_ARGS__} \
+< 			clickHandler_##name##_isHovered = true; \
+< 		} \
+< 	} \
+< 	void listen_##name##_clickWaitTime() { \
+< 		static bool enabled = false; \
+< 		static float startTime; \
+< 		if (clickHandler_##name##_clickWaitTime > 0) \
+< 		{ \
+< 			if (!enabled) \
+< 			{ \
+< 				startTime = clickHandler_##name##_clickWaitTime; \
+< 				enabled = true; \
+< 			} \
+< 			clickHandler_##name##_clickWaitTime -= MIN(startTime * 0.3f, deltaTime); \
+< 		} \
+< 		else if (enabled) \
+< 		{ \
+< 			__VA_ARGS__2 \
+< 			clickHandler_##name##_isHovered = false; \
+< 			enabled = false; \
+< 		} \
+< 	}
+< */
+< 
+< #define CLAY_CLICK_HANDLER2(name, __VA_ARGS__2, ...) \
+---
+> #define CLAY_CLICK_HANDLER(name, __VA_ARGS__1, __VA_ARGS__2, __VA_ARGS__3) \
+109,112c41,47
+< 			__VA_ARGS__ \
+< 			clickHandler_##name##_clickPhase = CLICK_PHASE_PRESSED_THIS_FRAME; \
+< 			clickHandler_##name##_elementId = elementId; \
+< 			clickHandler_##name##_beforeClickWaitTime = currentTime + MAX(0.01f, averageDeltaTime * 2); \
+---
+> 			if (!isInterrupted) \
+> 			{ \
+> 				__VA_ARGS__2 \
+> 				clickHandler_##name##_elementId = elementId; \
+> 				clickHandler_##name##_clickPhase = CLICK_PHASE_PRESSED_THIS_FRAME; \
+> 				clickHandler_##name##_beforeClickWaitTime = currentTime + MAX(0.01f, averageDeltaTime * 2); \
+> 			} \
+116a52,57
+> 		if (isInterrupted) \
+> 		{ \
+> 			__VA_ARGS__3 \
+> 			clickHandler_##name##_clickPhase = CLICK_PHASE_NONE; \
+> 			return; \
+> 		} \
+119a61
+> 			return; \
+121c63
+< 		else if (clickHandler_##name##_clickPhase == CLICK_PHASE_PRESSED) \
+---
+> 		if (clickHandler_##name##_clickPhase == CLICK_PHASE_PRESSED) \
+124a67
+> 			return; \
+126c69
+< 		else if (mousePos2_waitTime > currentTime) \
+---
+> 		if (mousePos2_waitTime > currentTime) \
+128a72
+> 			return; \
+130c74
+< 		else if (clickHandler_##name##_clickPhase == CLICK_PHASE_CHECK_POS) \
+---
+> 		if (clickHandler_##name##_clickPhase == CLICK_PHASE_CHECK_POS) \
+132c76
+< 			__VA_ARGS__2 \
+---
+> 			__VA_ARGS__1 \
+133a78
+> 			return; \
+137,139c82
+< #define WRAP_VA_ARGS(...) __VA_ARGS__
+< 
+< 
+---
+> //#define WRAP_VA_ARGS(...) __VA_ARGS__
+142,144c85,87
+< #define PARAM_OVERRIDE(_0, _1, func, ...) func
+< #define PARAM_OVERRIDE_ARGS_0(default, arg) default
+< #define PARAM_OVERRIDE_ARGS_1(default, arg) arg
+---
+> 
+> 
+> 
+161,162d103
+< 
+< double windowWidth = 1024, windowHeight = 768;
+163a105
+> double windowWidth = 1024, windowHeight = 768;
+175a118,119
+> const Clay_Color COLOR_PLAYER_X = COLOR_BLUE;
+> const Clay_Color COLOR_PLAYER_O = COLOR_YELLOW;
+177,178c121
+< 
+< const Clay_Sizing sizingGrow = {CLAY_SIZING_GROW(), CLAY_SIZING_GROW()};
+---
+> const Clay_Sizing sizingGrow = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)};
+181a125,126
+> 
+> 
+188,191d132
+< ActivePlayer BOARD[9] = {0};
+< ActivePlayer ACTIVE_PLAYER = ACTIVE_PLAYER_X;
+< ActivePlayer WINNER = ACTIVE_PLAYER_NONE;
+< 
+204a146,148
+> ActivePlayer BOARD[9] = {0};
+> ActivePlayer ACTIVE_PLAYER = ACTIVE_PLAYER_X;
+> ActivePlayer WINNER = ACTIVE_PLAYER_NONE;
+242c186,189
+< uint8_t MOVE_COUNTER = 0;
+---
+> 
+> 
+> 
+> 
+245a193,195
+> bool isPointerCancel;
+> bool isPointerStart;
+> bool isInterrupted;
+246a197,199
+> CLAY_CLICK_HANDLER(tictactoePage, {}, {}, {});
+> CLAY_CLICK_HANDLER(end, {}, {}, {});
+> CLAY_CLICK_HANDLER(winner, {}, {}, {});
+248,250c201,202
+< CLAY_CLICK_HANDLER2(end, {});
+< CLAY_CLICK_HANDLER(winner);
+< CLAY_CLICK_HANDLER2(playAgain, {
+---
+> uint8_t MOVE_COUNTER = 0;
+> CLAY_CLICK_HANDLER(playAgain, {
+258,259c210
+< });
+< 
+---
+> }, {}, {});
+260a212,219
+> #define RESET_BOARD() \
+> 	if (!WINNER && !BOARD[CELL_MARK_INDEX]) \
+> 	{ \
+> 		BOARD[CELL_MARK_INDEX] = ACTIVE_PLAYER; \
+> 		updateWinner(ACTIVE_PLAYER); \
+> 		ACTIVE_PLAYER = ACTIVE_PLAYER == ACTIVE_PLAYER_X ? ACTIVE_PLAYER_O : ACTIVE_PLAYER_X; \
+> 		MOVE_COUNTER++; \
+> 	}
+262,263c221,222
+< CLAY_CLICK_HANDLER2(cellMark, {
+< 	if (!WINNER && !BOARD[CELL_MARK_INDEX] && Clay_PointerOver(clickHandler_cellMark_elementId))
+---
+> CLAY_CLICK_HANDLER(cellMark, {
+> 	if (Clay_PointerOver(clickHandler_cellMark_elementId))
+265,268c224
+< 		BOARD[CELL_MARK_INDEX] = ACTIVE_PLAYER;
+< 		updateWinner(ACTIVE_PLAYER);
+< 		ACTIVE_PLAYER = ACTIVE_PLAYER == ACTIVE_PLAYER_X ? ACTIVE_PLAYER_O : ACTIVE_PLAYER_X;
+< 		MOVE_COUNTER++;
+---
+> 		RESET_BOARD();
+270c226
+< },
+---
+> }, {
+272,273c228,234
+< );
+< 
+---
+> }, {
+> 	if (!clickHandler_tictactoePage_clickPhase
+> 	&& Clay_PointerOver(clickHandler_cellMark_elementId))
+> 	{
+> 		RESET_BOARD();
+> 	}
+> });
+276c237
+< CLAY_CLICK_HANDLER2(cellHighlight, {
+---
+> CLAY_CLICK_HANDLER(cellHighlight, {
+278c239
+< },
+---
+> }, {
+280c241,244
+< );
+---
+> }, {
+> 	CELL_HOVER_INDEX = -1;
+> });
+> 
+288,289d251
+< CLAY_CLICK_HANDLER(tictactoePage);
+< 
+293d254
+< 
+297c258
+< 		WINNER == ACTIVE_PLAYER_NONE ? COLOR_BLACK : WINNER == ACTIVE_PLAYER_X ? COLOR_BLUE : COLOR_YELLOW,
+---
+> 		WINNER == ACTIVE_PLAYER_NONE ? COLOR_BLACK : WINNER == ACTIVE_PLAYER_X ? COLOR_PLAYER_X : COLOR_PLAYER_O,
+300c261
+< 			{CLAY_SIZING_GROW({.max=10 * lineWidth}), CLAY_SIZING_GROW({.max=10 * lineWidth})},
+---
+> 			{CLAY_SIZING_GROW(.max=10 * lineWidth), CLAY_SIZING_GROW(.max=10 * lineWidth)},
+308c269
+< 		listen_winner_clickWaitTime()
+---
+> 		listen_winner_click()
+310c271
+< 		CLAY_LABEL_OR_HOVERED("TictactoeWinner", 0, clickHandler_winner_isHovered);
+---
+> 		CLAY_LABEL_OR_HOVERED("TictactoeWinner", 0, clickHandler_winner_clickPhase);
+352d312
+< 			TictactoePlayAgain();
+353a314
+> 			TictactoePlayAgain();
+358c319
+< void TicTactoeCell(uint8_t cellIndex) {
+---
+> void TicTactoeCell(uint8_t cellIndex/*, void (*onHoverFunction)(Clay_ElementId, Clay_PointerData, intptr_t)*/) {
+363c324,328
+< 		Clay_OnHover(HandleTictactoeCellInteraction, cellIndex)
+---
+> 		Clay_OnHover(HandleTictactoeCellInteraction, cellIndex),
+> 		(cellIndex == 8 ? (
+> 			listen_cellMark_click(),
+> 			listen_cellHighlight_click()
+> 		) : 0)
+366c331
+< 			CLAY_BOX(CLAY_IDI("TictactoeMove", cellIndex), COLOR_BLUE, COLOR_NONE, lineWidth, lineWidth)
+---
+> 			CLAY_BOX(CLAY_IDI("TictactoeMove", cellIndex), COLOR_PLAYER_X, COLOR_NONE, lineWidth, lineWidth)
+369c334
+< 			CLAY_BOX(CLAY_IDI("TictactoeMove", cellIndex), COLOR_YELLOW, COLOR_NONE, lineWidth, lineWidth)
+---
+> 			CLAY_BOX(CLAY_IDI("TictactoeMove", cellIndex), COLOR_PLAYER_O, COLOR_NONE, lineWidth, lineWidth)
+378c343
+< 			{CLAY_SIZING_GROW(), CLAY_SIZING_PERCENT(windowWidth / windowHeight)}
+---
+> 			{CLAY_SIZING_GROW(0), CLAY_SIZING_PERCENT(windowWidth / windowHeight)}
+384,386c349
+< 			CLAY_FLOATING(),
+< 			listen_cellHighlight_click(),
+< 			listen_cellMark_click()
+---
+> 			CLAY_FLOATING()
+388,392d350
+< 			TictactoeEnd();
+< 			CLAY_LABEL_OR_HOVERED("TictactoeGrid",
+< 				(floatingConfig.attachment=(Clay_FloatingAttachPoints){CLAY_ATTACH_POINT_CENTER_BOTTOM, CLAY_ATTACH_POINT_CENTER_TOP}),
+< 				clickHandler_cellHighlight_clickPhase
+< 			);
+399a358,367
+> 
+> 			CLAY_LABEL_OR_HOVERED("TictactoeGrid",
+> 				CLAY_FLOATING({
+> 					.attachment={CLAY_ATTACH_POINT_CENTER_BOTTOM, CLAY_ATTACH_POINT_CENTER_TOP},
+> 					.pointerCaptureMode=CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH
+> 				}),
+> 				clickHandler_cellHighlight_clickPhase
+> 			);
+> 
+> 			TictactoeEnd();
+415c383
+< 		listen_tictactoePage_clickWaitTime()
+---
+> 		listen_tictactoePage_click()
+417,418d384
+< 		CLAY_LABEL_OR_HOVERED("TictactoePage", 0, clickHandler_tictactoePage_isHovered);
+< 		TictactoeWinner();
+419a386,387
+> 		CLAY_LABEL_OR_HOVERED("TictactoePage", 0, clickHandler_tictactoePage_clickPhase);
+> 		TictactoeWinner();
+460c428
+< CLAY_WASM_EXPORT("UpdateDrawFrame") Clay_RenderCommandArray UpdateDrawFrame(float width, float height, float mouseWheelX, float mouseWheelY, float mousePositionX, float mousePositionY, bool isTouchDown, bool isMouseDown, bool arrowKeyDownPressedThisFrame, bool arrowKeyUpPressedThisFrame, bool dKeyPressedThisFrame, float __currentTime, float __deltaTime) {
+---
+> CLAY_WASM_EXPORT("UpdateDrawFrame") Clay_RenderCommandArray UpdateDrawFrame(float width, float height, float mouseWheelX, float mouseWheelY, float mousePositionX, float mousePositionY, bool isTouchDown, bool isMouseDown, bool __isPointerStart, bool __isPointerCancel, bool arrowKeyDownPressedThisFrame, bool arrowKeyUpPressedThisFrame, bool dKeyPressedThisFrame, float __currentTime, float __deltaTime) {
+462a431,439
+> 	isPointerCancel = __isPointerCancel;
+> 	isPointerStart = __isPointerStart;
+> 	if (isPointerCancel)
+> 	{
+> 		isInterrupted = true;
+> 	} else if (isInterrupted)
+> 	{
+> 		isInterrupted = !isPointerStart;
+> 	}

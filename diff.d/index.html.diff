@@ -1,0 +1,15 @@
+6c6
+<     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
+---
+>     <meta name="viewport" content="width=device-width, initial-scale=1" />
+49a50,59
+> 		* {
+> 			user-select: none;
+> 			touch-action: manipulation;
+> 		}
+> 
+> 		:root {
+> 			touch-action: pan-x pan-y;
+> 			height: 100%;
+> 		}
+> 		
