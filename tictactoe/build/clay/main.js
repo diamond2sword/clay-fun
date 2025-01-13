@@ -109,6 +109,7 @@ function getStructTotalSize(definition) {
 			return totalSize;
 		}
 		case 'float': return 4;
+		case 'int32_t': return 4;
 		case 'uint32_t': return 4;
 		case 'uint16_t': return 2;
 		case 'uint8_t': return 1;
@@ -137,6 +138,7 @@ function readStructAtAddress(address, definition) {
 			return struct;
 		}
 		case 'float': return { value: memoryDataView.getFloat32(address, true), __size: 4 };
+		case 'int32_t': return { value: memoryDataView.getUint32(address, true), __size: 4 };
 		case 'uint32_t': return { value: memoryDataView.getUint32(address, true), __size: 4 };
 		case 'uint16_t': return { value: memoryDataView.getUint16(address, true), __size: 2 };
 		case 'uint8_t': return { value: memoryDataView.getUint8(address, true), __size: 1 };
@@ -185,7 +187,9 @@ async function init() {
 	});
 
 	function handleTouch (event) {
-		if (event.touches.length === 1) {
+		if (event.touches.length === 1)
+		{
+			window.touchDown = true;
 			let target = event.target;
 			let scrollTop = 0;
 			let scrollLeft = 0;
@@ -197,24 +201,28 @@ async function init() {
 			window.mousePositionXThisFrame = event.changedTouches[0].pageX + scrollLeft;
 			window.mousePositionYThisFrame = event.changedTouches[0].pageY + scrollTop;
 		}
-		window.touchDown = true;
 	}
 
 
-	document.addEventListener("touchmove", handleTouch);
+	document.addEventListener("touchmove", (event) => {
+		if (event.scale !== 1) event.preventDefault();
+		handleTouch(event);
+	}, {passive: false});
 	
 	document.addEventListener("touchstart", (event) => {
 		window.mousePositionXThisFrame = 0;
 		window.mousePositionYThisFrame = 0;
+		window.touchStart = true;
 		handleTouch(event);
-	});	
+		event.preventDefault();
+	}, {passive: false});
 
 	document.addEventListener("touchend", (event) => {
 		window.touchDown = false;
 	});
 	
 	document.addEventListener("touchcancel", (event) => {
-		alert("touchcancel");
+		window.pointerCancel = true;
 	});
 	
 	document.addEventListener("mousemove", (event) => {
@@ -239,6 +247,10 @@ async function init() {
 
 	document.addEventListener("mouseup", (event) => {
 		window.mouseDown = false;
+	});
+	
+	document.addEventListener("mousecancel", (event) => {
+		window.pointerCancel = true;
 	});
 
 	document.addEventListener("keydown", (event) => {
@@ -307,8 +319,8 @@ function MemoryIsDifferent(one, two, length) {
 }
 
 function renderLoopHTML() {
-	let capacity = memoryDataView.getUint32(scratchSpaceAddress, true);
-	let length = memoryDataView.getUint32(scratchSpaceAddress + 4, true);
+	let capacity = memoryDataView.getInt32(scratchSpaceAddress, true);
+	let length = memoryDataView.getInt32(scratchSpaceAddress + 4, true);
 	let arrayOffset = memoryDataView.getUint32(scratchSpaceAddress + 8, true);
 	let scissorStack = [{ nextAllocation: { x: 0, y: 0 }, element: htmlRoot, nextElementIndex: 0 }];
 	let previousId = 0;
@@ -374,7 +386,7 @@ function renderLoopHTML() {
 			element.style.height = Math.round(renderCommand.boundingBox.height.value) + 'px';
 		}
 
-		switch(renderCommand.commandType.value) {
+		switch(renderCommand.commandType.value & 0xff) {
 			case (CLAY_RENDER_COMMAND_TYPE_NONE): {
 				break;
 			}
@@ -465,7 +477,6 @@ function renderLoopHTML() {
 					element.style.fontSize = fontSize + 'px';
 					if (config.disablePointerEvents.value) {
 						element.style.pointerEvents ='none';
-						element.style.touchAction ='none';
 					}
 					elementData.previousMemoryConfig = configMemory;
 				}
@@ -520,7 +531,7 @@ function renderLoop(currentTime) {
 	deltaTime = currentTime - previousFrameTime;
 	previousFrameTime = currentTime;
 
-	instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, 0, 0, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, 0, 0, window.dKeyPressedThisFrame, currentTime, deltaTime);
+	instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, 0, 0, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, window.touchStart, window.pointerCancel, 0, 0, window.dKeyPressedThisFrame, currentTime, deltaTime);
 
 	renderLoopHTML();
 	requestAnimationFrame(renderLoop);
@@ -528,5 +539,7 @@ function renderLoop(currentTime) {
 	window.arrowKeyUpPressedThisFrame = false;
 	window.arrowKeyDownPressedThisFrame = false;
 	window.dKeyPressedThisFrame = false;
+	window.pointerCancel = false;
+	window.touchStart = false;
 }
 init();

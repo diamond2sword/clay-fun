@@ -1,8 +1,9 @@
 #!/bin/bash
 
+# shellcheck disable=SC2034,SC2317,SC2207,SC2046,SC2005,SC2002,SC2086,SC2115
+
 main () (
 	declare_strings "$@"
-	declare_git_commands
 	declare_ssh_auth_eval
 	add_ssh_key_to_ssh_agent
 	exec_git_command "$@"
@@ -44,16 +45,18 @@ declare_strings () {
 }
 
 exec_git_command () {
-	main () {
+	main () (
 		local git_command="$1"; shift
 		local args="$*"
+
+		declare_git_commands
 		reset_credentials
 		if [[ "$git_command" == "git" ]]; then
 			ssh_auth_eval "git $args"
 			return
 		fi	
 		eval "$git_command" "$args"
-	}
+	)
 
 	is_var_set () {
 		local git_command="$1"
@@ -77,7 +80,8 @@ declare_git_commands () {
 	install_git_bash_to_repo () {
 		local repo_name="$1"
 		# get branch name
-		local branch_name="$(git rev-parse --abbrev-ref HEAD)"
+		local branch_name
+		branch_name="$(git rev-parse --abbrev-ref HEAD)"
 		echo -en "\n\nDoing $repo_name/$branch_name\n\n"
 		clone "$repo_name"
 		repo_path="$HOME/$repo_name"
@@ -114,6 +118,7 @@ declare_git_commands () {
 	}
 
 	push () {
+		[[ $1 ]] && COMMIT_NAME="$1"
 		cd "$REPO_PATH" || exit
 		git add .
 		git commit -m "$COMMIT_NAME"
