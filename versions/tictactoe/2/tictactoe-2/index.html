@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <link rel="preload" href="/clay/fonts/JetBrainsMono-Regular.ttf" as="font" type="font/ttf" crossorigin>
     <title>Clay Website</title>
     <style>
@@ -47,20 +47,20 @@
             white-space: pre;
         }
 
-		* {
-			user-select: none;
-			touch-action: manipulation;
-		}
-
 		:root {
 			touch-action: pan-x pan-y;
 			height: 100%;
 		}
-		
+
         /* TODO special exception for text selection in debug tools */
         [id='2067877626'] > * {
             pointer-events: none !important;
         }
+		
+		* {
+			user-select: none !important;
+			touch-action: manipulation !important;
+		}
     </style>
 </head>
 <script type="module" src="/clay/main.js"></script>

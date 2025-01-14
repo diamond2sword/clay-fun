@@ -219,7 +219,8 @@ async function init() {
 
 	document.addEventListener("touchend", (event) => {
 		window.touchDown = false;
-	});
+		event.preventDefault();
+	}, {passive: false});
 	
 	document.addEventListener("touchcancel", (event) => {
 		window.pointerCancel = true;
