@@ -1,19 +1,24 @@
-#include <stdint.h>
-#define CLAY_BOX(elementId, fillColor, borderColor, borderWidth, cornerRadius, ...) \
+#define CLAY_BOX(elementId, __VA_ARGS__2, ...) \
 	CLAY( \
 		elementId, \
-		CLAY_LAYOUT({sizingGrow, {borderWidth, borderWidth}}), \
-		CLAY_RECTANGLE({fillColor, CLAY_CORNER_RADIUS(cornerRadius)}), \
-		CLAY_BORDER_OUTSIDE_RADIUS(borderWidth, borderColor, cornerRadius), \
-		##__VA_ARGS__ \
+		boxConfig = (Clay_BoxElementConfig){COLOR_NONE, COLOR_NONE, lineWidth, lineWidth}, \
+		__VA_ARGS__2, \
+		layoutConfig = (Clay_LayoutConfig){sizingGrow, {boxConfig.borderWidth, boxConfig.borderWidth}}, \
+		rectangleConfig = (Clay_RectangleElementConfig){boxConfig.fillColor, CLAY_CORNER_RADIUS(boxConfig.cornerRadius)}, \
+		##__VA_ARGS__, \
+		CLAY_BORDER_OUTSIDE_RADIUS(boxConfig.borderWidth, boxConfig.borderColor, boxConfig.cornerRadius), \
+		CLAY_LAYOUT(layoutConfig), \
+		CLAY_RECTANGLE(rectangleConfig) \
 	) 
 
 #define CLAY_LABEL(text, ...) \
+	rectangleConfig = (Clay_RectangleElementConfig){Color_AsFaded(COLOR_BLACK), CLAY_CORNER_RADIUS(lineWidth)}; \
+	floatingConfig = (Clay_FloatingElementConfig){.pointerCaptureMode=CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH}; \
 	CLAY( \
 		CLAY_IDI("ClayLabel", CLAY_LABEL_INDEX++), \
-		CLAY_RECTANGLE({Color_AsFaded(COLOR_BLACK), CLAY_CORNER_RADIUS(lineWidth)}),  \
 		##__VA_ARGS__, \
-		CLAY_FLOATING({.pointerCaptureMode=CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH}) \
+		CLAY_RECTANGLE(rectangleConfig),  \
+		CLAY_FLOATING(floatingConfig) \
 	) { \
 		NORMAL_TEXT(text); \
 	}
@@ -23,11 +28,15 @@
 	else { CLAY_LABEL(text, __VA_ARGS__2) }
 
 
-#define NORMAL_TEXT(text) \
+#define NORMAL_TEXT(text, ...) \
+	textConfig = (Clay_TextElementConfig){COLOR_WHITE, FONT_ID_TEXT, 0.09f * windowSmallWidth, .disablePointerEvents = true}; \
+	("empty", ##__VA_ARGS__); \
 	CLAY_TEXT( \
 		CLAY_STRING(text), \
-		CLAY_TEXT_CONFIG({COLOR_WHITE, FONT_ID_TEXT, 0.09f * windowSmallWidth, .disablePointerEvents = true}) \
-	)
+		CLAY_TEXT_CONFIG(textConfig) \
+	); \
+
+
 
 #define CLAY_CLICK_HANDLER(name, __VA_ARGS__1, __VA_ARGS__2, __VA_ARGS__3) \
 	float clickHandler_##name##_beforeClickWaitTime; \
@@ -92,6 +101,17 @@
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
 
+Clay_LayoutConfig layoutConfig;
+Clay_RectangleElementConfig rectangleConfig;
+Clay_FloatingElementConfig floatingConfig;
+Clay_TextElementConfig textConfig;
+// Clay Box
+typedef struct Clay_BoxElementConfig {
+	Clay_Color borderColor, fillColor;
+	float borderWidth, cornerRadius;
+} Clay_BoxElementConfig;
+Clay_BoxElementConfig boxConfig;
+
 typedef enum : uint8_t {
 	CLICK_PHASE_NONE,
 	CLICK_PHASE_PRESSED_THIS_FRAME,
@@ -147,6 +167,7 @@ ActivePlayer BOARD[9] = {0};
 ActivePlayer ACTIVE_PLAYER = ACTIVE_PLAYER_X;
 ActivePlayer WINNER = ACTIVE_PLAYER_NONE;
 WinSlope BOARD_WIN_SLOPE_MAP[9] = {0};
+uint8_t MOVE_COUNTER = 0;
 
 uint8_t chk3(uint8_t init_index, uint8_t offset, uint8_t init_index_offset, uint8_t max_inits, ActivePlayer value)
 {
@@ -182,7 +203,20 @@ void updateWinner(ActivePlayer value) {
 	chk3(0, 3, 1, 3, value);
 	chk3(0, 4, 0, 1, value);
 }
-
+void resetBoard() {
+	for (int i = 0; i < 9; i++) BOARD[i] = 0;
+	WINNER = ACTIVE_PLAYER_NONE;
+	MOVE_COUNTER = 0;
+	ACTIVE_PLAYER = ACTIVE_PLAYER_X;
+}
+void makeMove(int8_t cellIndex)
+{
+	if (WINNER || BOARD[cellIndex]) return;
+	BOARD[cellIndex] = ACTIVE_PLAYER;
+	updateWinner(ACTIVE_PLAYER);
+	ACTIVE_PLAYER = ACTIVE_PLAYER == ACTIVE_PLAYER_X ? ACTIVE_PLAYER_O : ACTIVE_PLAYER_X;
+	MOVE_COUNTER++;
+}
 
 
 
@@ -198,49 +232,24 @@ CLAY_CLICK_HANDLER(tictactoePage, {}, {}, {});
 CLAY_CLICK_HANDLER(end, {}, {}, {});
 CLAY_CLICK_HANDLER(winner, {}, {}, {});
 
-uint8_t MOVE_COUNTER = 0;
-CLAY_CLICK_HANDLER(playAgain, {
-	if (Clay_PointerOver(clickHandler_playAgain_elementId))
-	{
-		for (int i = 0; i < 9; i++) BOARD[i] = 0;
-		WINNER = ACTIVE_PLAYER_NONE;
-		MOVE_COUNTER = 0;
-		ACTIVE_PLAYER = ACTIVE_PLAYER_X;
-	}
-}, {}, {});
+CLAY_CLICK_HANDLER(playAgain, 
+	{if (Clay_PointerOver(clickHandler_playAgain_elementId)) resetBoard();},
+	{}, {}
+);
 
-#define RESET_BOARD() \
-	if (!WINNER && !BOARD[CELL_MARK_INDEX]) \
-	{ \
-		BOARD[CELL_MARK_INDEX] = ACTIVE_PLAYER; \
-		updateWinner(ACTIVE_PLAYER); \
-		ACTIVE_PLAYER = ACTIVE_PLAYER == ACTIVE_PLAYER_X ? ACTIVE_PLAYER_O : ACTIVE_PLAYER_X; \
-		MOVE_COUNTER++; \
-	}
 int8_t CELL_MARK_INDEX = -1;
-CLAY_CLICK_HANDLER(cellMark, {
-	if (Clay_PointerOver(clickHandler_cellMark_elementId))
-	{
-		RESET_BOARD();
-	}
-}, {
-	CELL_MARK_INDEX = userData;
-}, {
-	if (!clickHandler_tictactoePage_clickPhase
-	&& Clay_PointerOver(clickHandler_cellMark_elementId))
-	{
-		RESET_BOARD();
-	}
-});
+CLAY_CLICK_HANDLER(cellMark, 
+	{if (Clay_PointerOver(clickHandler_cellMark_elementId)) makeMove(CELL_MARK_INDEX);},
+	{CELL_MARK_INDEX = userData;},
+	{if (!clickHandler_tictactoePage_clickPhase) makeMove(CELL_MARK_INDEX);}
+);
 
 int8_t CELL_HOVER_INDEX = -1;
-CLAY_CLICK_HANDLER(cellHighlight, {
-	CELL_HOVER_INDEX = -1;
-}, {
-	CELL_HOVER_INDEX = userData;
-}, {
-	CELL_HOVER_INDEX = -1;
-});
+CLAY_CLICK_HANDLER(cellHighlight,
+	{CELL_HOVER_INDEX = -1;},
+	{CELL_HOVER_INDEX = userData;},
+	{CELL_HOVER_INDEX = -1;}
+);
 
 
 void HandleTictactoeCellInteraction(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData)
@@ -253,18 +262,13 @@ double windowSmallWidth;
 float lineWidth;
 
 void TictactoeWinner() {
-	CLAY_BOX(
-		CLAY_ID("TictactoeWinner"),
-		WINNER == ACTIVE_PLAYER_NONE ? COLOR_BLACK : WINNER == ACTIVE_PLAYER_X ? COLOR_PLAYER_X : COLOR_PLAYER_O,
-		COLOR_WHITE, lineWidth, lineWidth,
-		CLAY_LAYOUT({
-			{CLAY_SIZING_GROW(.max=10 * lineWidth), CLAY_SIZING_GROW(.max=10 * lineWidth)},
-			{lineWidth, lineWidth}
-		}),
-		CLAY_FLOATING({
-			.pointerCaptureMode=CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH,
-			.attachment={.element=CLAY_ATTACH_POINT_LEFT_BOTTOM, .parent=CLAY_ATTACH_POINT_LEFT_BOTTOM}
-		}),
+	CLAY_BOX(CLAY_ID("TictactoeWinner"),
+		(
+			boxConfig.fillColor=WINNER == ACTIVE_PLAYER_NONE ? COLOR_BLACK : WINNER == ACTIVE_PLAYER_X ? COLOR_PLAYER_X : COLOR_PLAYER_O,
+			boxConfig.borderColor=COLOR_WHITE
+		),
+		layoutConfig.sizing=(Clay_Sizing){CLAY_SIZING_GROW(.max=10 * lineWidth), CLAY_SIZING_GROW(.max=10 * lineWidth)},
+		CLAY_FLOATING({.attachment={CLAY_ATTACH_POINT_LEFT_BOTTOM, CLAY_ATTACH_POINT_LEFT_BOTTOM}}),
 		Clay_OnHover(handle_winner_clickInteraction, 0),
 		listen_winner_click()
 	) {
@@ -273,26 +277,20 @@ void TictactoeWinner() {
 }
 
 void TictactoePlayAgain() {
-	CLAY_BOX(CLAY_ID("TictactoePlayAgain"), 
-		Color_AsFaded(clickHandler_playAgain_clickPhase
-			? COLOR_BLACK : COLOR_GREEN),
-		Color_AsFaded(clickHandler_playAgain_clickPhase
-			? COLOR_WHITE : COLOR_RED),
-		lineWidth,
-		lineWidth,
-		CLAY_LAYOUT({
-			{CLAY_SIZING_FIT(), CLAY_SIZING_FIT()},
-			{lineWidth, lineWidth}
-		}),
+	CLAY_BOX(CLAY_ID("TictactoePlayAgain"),
+		(
+			boxConfig.fillColor=Color_AsFaded(clickHandler_playAgain_clickPhase
+				? COLOR_BLACK : COLOR_GREEN),
+			boxConfig.borderColor=Color_AsFaded(clickHandler_playAgain_clickPhase
+				? COLOR_WHITE : COLOR_RED)
+		),
+		layoutConfig.sizing=(Clay_Sizing){CLAY_SIZING_FIT(), CLAY_SIZING_FIT()},
 		Clay_OnHover(handle_playAgain_clickInteraction, 0),
 		listen_playAgain_click()
 	) {
 		NORMAL_TEXT("Play Again");
 		CLAY_LABEL_OR_HOVERED("TictactoePlayAgain",
-			CLAY_FLOATING({
-				.attachment={CLAY_ATTACH_POINT_CENTER_BOTTOM, CLAY_ATTACH_POINT_CENTER_TOP},
-				.pointerCaptureMode=CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH
-			}),
+			(floatingConfig.attachment=(Clay_FloatingAttachPoints){CLAY_ATTACH_POINT_CENTER_BOTTOM, CLAY_ATTACH_POINT_CENTER_TOP}),
 			clickHandler_playAgain_clickPhase
 		);
 	}
@@ -301,11 +299,11 @@ void TictactoePlayAgain() {
 void TictactoeEnd() {
 	if (WINNER || MOVE_COUNTER == 9) {
 		CLAY_BOX(CLAY_ID("TictactoeEnd"), 
-			Color_AsFaded(COLOR_BLACK),
-			Color_AsFaded(COLOR_WHITE),
-			lineWidth,
-			lineWidth,
-			CLAY_LAYOUT({sizingGrow, {lineWidth, lineWidth}, .childAlignment=centerXY}),
+			(
+				boxConfig.fillColor=Color_AsFaded(COLOR_BLACK),
+				boxConfig.borderColor=Color_AsFaded(COLOR_WHITE)
+			),
+			layoutConfig.childAlignment=centerXY,
 			CLAY_FLOATING(),
 			Clay_OnHover(handle_end_clickInteraction, 0),
 			listen_end_click()
@@ -317,35 +315,29 @@ void TictactoeEnd() {
 }
 
 void TicTactoeCell(uint8_t cellIndex/*, void (*onHoverFunction)(Clay_ElementId, Clay_PointerData, intptr_t)*/) {
-	CLAY_BOX(CLAY_IDI("TictactoeCell", cellIndex), 
-		CELL_HOVER_INDEX == cellIndex ? COLOR_WHITE : COLOR_GREEN,
-		CELL_HOVER_INDEX == cellIndex ? COLOR_BLACK : COLOR_RED,
-		lineWidth, lineWidth,
+	CLAY_BOX(CLAY_IDI("TictactoeCell", cellIndex),
+		(
+			boxConfig.fillColor=CELL_HOVER_INDEX == cellIndex ? COLOR_WHITE : COLOR_GREEN,
+			boxConfig.borderColor=CELL_HOVER_INDEX == cellIndex ? COLOR_BLACK : COLOR_RED
+		),
 		Clay_OnHover(HandleTictactoeCellInteraction, cellIndex),
-		(cellIndex == 8 ? (
-			listen_cellMark_click(),
-			listen_cellHighlight_click()
-		) : 0)
+		cellIndex == 8 ? (listen_cellMark_click(), listen_cellHighlight_click()) : 0
 	) {
 		if (BOARD[cellIndex] == ACTIVE_PLAYER_X) {
-			CLAY_BOX(CLAY_IDI("TictactoeMove", cellIndex), COLOR_PLAYER_X, COLOR_NONE, lineWidth, lineWidth)
+			CLAY_BOX(CLAY_IDI("TictactoeMove", cellIndex), (boxConfig.fillColor=COLOR_PLAYER_X))
 			{}
 		} else if (BOARD[cellIndex] == ACTIVE_PLAYER_O) {
-			CLAY_BOX(CLAY_IDI("TictactoeMove", cellIndex), COLOR_PLAYER_O, COLOR_NONE, lineWidth, lineWidth)
+			CLAY_BOX(CLAY_IDI("TictactoeMove", cellIndex), (boxConfig.fillColor=COLOR_PLAYER_O))
 			{}
 		}
 	}
 }
 
 void TictactoeGrid() {
-	CLAY(
-		CLAY_LAYOUT({
-			{CLAY_SIZING_GROW(0), CLAY_SIZING_PERCENT(windowWidth / windowHeight)}
-		})
-	) {
+	layoutConfig=(Clay_LayoutConfig){{CLAY_SIZING_GROW(0), CLAY_SIZING_PERCENT(windowWidth / windowHeight)}};
+	CLAY(CLAY_LAYOUT(layoutConfig)) {
 		CLAY_BOX(CLAY_ID("TictactoeGrid"),
-			COLOR_WHITE, COLOR_BLACK,
-			lineWidth, lineWidth, 
+			(boxConfig.fillColor=COLOR_WHITE, boxConfig.borderColor=COLOR_BLACK),
 			CLAY_FLOATING()
 		) {
 			CLAY(CLAY_LAYOUT({sizingGrow, .layoutDirection=CLAY_TOP_TO_BOTTOM})) {for (int row = 0; row < 3; row++)
@@ -357,10 +349,7 @@ void TictactoeGrid() {
 			}}
 
 			CLAY_LABEL_OR_HOVERED("TictactoeGrid",
-				CLAY_FLOATING({
-					.attachment={CLAY_ATTACH_POINT_CENTER_BOTTOM, CLAY_ATTACH_POINT_CENTER_TOP},
-					.pointerCaptureMode=CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH
-				}),
+				(floatingConfig.attachment=(Clay_FloatingAttachPoints){CLAY_ATTACH_POINT_CENTER_BOTTOM, CLAY_ATTACH_POINT_CENTER_TOP}),
 				clickHandler_cellHighlight_clickPhase
 			);
 
@@ -373,12 +362,9 @@ void TictactoePage() {
 	windowSmallWidth = (windowWidth < windowHeight ? windowWidth : windowHeight);
 	lineWidth = 0.025f * windowSmallWidth;
 
-	CLAY_BOX(CLAY_ID("TictactoePage"), COLOR_GREEN, COLOR_RED, lineWidth, lineWidth,
-		CLAY_LAYOUT({
-			sizingGrow,
-			{lineWidth, lineWidth},
-			.childAlignment=centerXY
-		}),
+	CLAY_BOX(CLAY_ID("TictactoePage"),
+		(boxConfig.fillColor=COLOR_GREEN, boxConfig.borderColor=COLOR_RED),
+		layoutConfig.childAlignment=centerXY,
 		Clay_OnHover(handle_tictactoePage_clickInteraction, 0),
 		listen_tictactoePage_click()
 	) {
@@ -398,7 +384,7 @@ Clay_RenderCommandArray CreateLayout(bool mobileScreen, float lerpValue) {
 
 bool debugModeEnabled = false;
 
-#define N_STEPS_AVERAGE_DELTA_TIME_CYCLE 5
+#define N_STEPS_AVERAGE_DELTA_TIME_CYCLE 20
 void updateAverageDeltaTime()
 {
 	static float cycleData[N_STEPS_AVERAGE_DELTA_TIME_CYCLE] = {0};
