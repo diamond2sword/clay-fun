@@ -70,16 +70,19 @@ Clay_Color Color_AsFaded(Clay_Color color) {
 	color.a /= 2;
 	return color;
 }
-const Clay_Color COLOR_WHITE = (Clay_Color) {255, 255, 255, 255};
-const Clay_Color COLOR_BLACK = (Clay_Color) {0, 0, 0, 255};
-const Clay_Color COLOR_RED = (Clay_Color) {255, 0, 0, 255};
-const Clay_Color COLOR_GREEN = (Clay_Color) {0, 255, 0, 255};
-const Clay_Color COLOR_YELLOW = (Clay_Color) {255, 255, 0, 255};
-const Clay_Color COLOR_NONE = (Clay_Color) {0, 0, 0, 0};
-const Clay_Color COLOR_BLUE = (Clay_Color) {0, 0, 255, 255};
+#define SET_COLOR(name, ...) const Clay_Color COLOR_##name = (Clay_Color) {__VA_ARGS__}
+SET_COLOR(WHITE, 255, 255, 255, 255);
+SET_COLOR(BLACK, 0, 0, 0, 255);
+SET_COLOR(RED, 255, 0, 0, 255);
+SET_COLOR(GREEN, 0, 255, 0, 255);
+SET_COLOR(YELLOW, 255, 255, 0, 255);
+SET_COLOR(NONE, 0, 0, 0, 0);
+SET_COLOR(BLUE, 0, 0, 255, 255);
 
 const Clay_Sizing sizingGrow = {CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0)};
 const Clay_ChildAlignment centerXY = {CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER};
+
+
 
 
 #define TTT_IMPLEMENTATION
@@ -105,12 +108,21 @@ const Clay_Color COLOR_PLAYER_O = COLOR_YELLOW;
 	float clickHandler_##name##_beforeClickWaitTime; \
 	ClickPhase clickHandler_##name##_clickPhase; \
 	Clay_ElementId clickHandler_##name##_elementId; \
+	bool clickHandler_##name##_inTouchStart; \
 	void handle_##name##_clickInteraction(ON_HOVER_PARAMS) \
 	{ \
 		if (POINTER_IS(PRESSED_THIS_FRAME) || POINTER_IS(PRESSED)) \
 		{ \
 			if (!isInterrupted) \
 			{ \
+				if (pointerStartLock_waitTime > currentTime) \
+				{ \
+					clickHandler_##name##_inTouchStart = true; \
+				} \
+				else if (!clickHandler_##name##_inTouchStart) \
+				{ \
+					return; \
+				} \
 				__VA_ARGS__2 \
 				clickHandler_##name##_elementId = elementId; \
 				CLICK_SET(name, PRESSED_THIS_FRAME); \
@@ -120,8 +132,9 @@ const Clay_Color COLOR_PLAYER_O = COLOR_YELLOW;
 	} \
 	void listen_##name##_click() { \
 		static float mousePos2_waitTime; \
-		if (isInterrupted) \
+		if (isInterrupted) \http://127.0.0.1:8072/clay/
 		{ \
+			clickHandler_##name##_inTouchStart = false; \
 			__VA_ARGS__3 \
 			CLICK_SET(name, NONE); \
 			return; \
@@ -133,6 +146,12 @@ const Clay_Color COLOR_PLAYER_O = COLOR_YELLOW;
 		} \
 		if (CLICK_IS(name, PRESSED)) \
 		{ \
+			if (isPointerDown) \
+			{ \
+				__VA_ARGS__4 \
+				return; \
+			} \
+			else clickHandler_##name##_inTouchStart = false; \
 			CLICK_SET(name, CHECK_POS_THIS_FRAME); \
 			mousePos2_waitTime = currentTime + MAX(0.01f, averageDeltaTime * 2); \
 			return; \
@@ -163,10 +182,13 @@ double windowWidth = 1024, windowHeight = 768;
 bool isPortrait;
 bool isPointerCancel;
 bool isPointerStart;
-float deltaTime;
 float currentTime;
+float deltaTime;
 float averageDeltaTime;
 bool isInterrupted;
+uint32_t pointerStartId;
+float pointerStartLock_waitTime;
+bool isPointerDown;
 
 CLAY_CLICK_HANDLER(tictactoePage, {}, {}, {});
 CLAY_CLICK_HANDLER(end, {}, {}, {});
@@ -179,9 +201,9 @@ CLAY_CLICK_HANDLER(playAgain,
 
 int8_t CELL_MARK_INDEX = -1;
 CLAY_CLICK_HANDLER(cellMark, 
-	{if (Clay_PointerOver(clickHandler_cellMark_elementId)) makeMove(CELL_MARK_INDEX);},
+	{if (Clay_PointerOver(clickHandler_cellMark_elementId) && CELL_MARK_INDEX != -1) makeMove(CELL_MARK_INDEX);},
 	{CELL_MARK_INDEX = userData;},
-	{if (!clickHandler_tictactoePage_clickPhase) makeMove(CELL_MARK_INDEX);}
+	{if (CLICK_IS(cellMark, NONE) && CELL_MARK_INDEX != -1) makeMove(CELL_MARK_INDEX);}
 );
 
 int8_t CELL_HOVER_INDEX = -1;
@@ -276,12 +298,13 @@ void TicTactoeCell(uint8_t cellIndex) {
 void TictactoeGrid() {
 	layoutConfig=(Clay_LayoutConfig){{CLAY_SIZING_GROW(0), CLAY_SIZING_PERCENT(windowSmallSide/ windowLongSide)}};
 	if (!isPortrait) layoutConfig.sizing = (Clay_Sizing){
-		CLAY_SIZING_PERCENT(windowSmallSide / windowLongSide), CLAY_SIZING_GROW(0)
+		CLAY_SIZING_PERCENT(windowSmallSide / windowLongSide), CLAY_SIZING_GROW(0),
 	};
 	CLAY(CLAY_LAYOUT(layoutConfig)) {
 		CLAY_BOX(CLAY_ID("TictactoeGrid"),
 			(boxConfig.color=(Clay_BoxColor){COLOR_WHITE, COLOR_BLACK}),
-			CLAY_FLOATING()
+			CLAY_FLOATING(),
+			Clay_OnHover(HandleTictactoeCellInteraction, -1)
 		) {
 			CLAY(CLAY_LAYOUT({sizingGrow, .layoutDirection=CLAY_TOP_TO_BOTTOM})) {for (int row = 0; row < 3; row++)
 			{
@@ -321,10 +344,6 @@ void TictactoePage() {
 float animationLerpValue = -1.0f;
 
 Clay_RenderCommandArray CreateLayout(bool mobileScreen, float lerpValue) {
-	windowSmallSide = MIN(windowWidth, windowHeight);
-	windowLongSide = MAX(windowWidth, windowHeight);
-	lineWidth = 0.025f * windowSmallSide;
-	isPortrait = windowWidth < windowHeight;
     Clay_BeginLayout();
 	TictactoePage();
     return Clay_EndLayout();
@@ -361,22 +380,34 @@ void updateAverageDeltaTime()
 }
 
 
-CLAY_WASM_EXPORT("UpdateDrawFrame") Clay_RenderCommandArray UpdateDrawFrame(float width, float height, float mouseWheelX, float mouseWheelY, float mousePositionX, float mousePositionY, bool isTouchDown, bool isMouseDown, bool __isPointerStart, bool __isPointerCancel, bool arrowKeyDownPressedThisFrame, bool arrowKeyUpPressedThisFrame, bool dKeyPressedThisFrame, float __currentTime, float __deltaTime) {
+CLAY_WASM_EXPORT("UpdateDrawFrame") Clay_RenderCommandArray UpdateDrawFrame(float width, float height, float mouseWheelX, float mouseWheelY, float mousePositionX, float mousePositionY, bool __isTouchDown, bool __isMouseDown, bool __isPointerStart, bool __isPointerCancel, bool arrowKeyDownPressedThisFrame, bool arrowKeyUpPressedThisFrame, bool dKeyPressedThisFrame, float __currentTime, float __deltaTime) {
 	currentTime = __currentTime;
 	deltaTime = __deltaTime;
+	updateAverageDeltaTime();
 	isPointerStart = __isPointerStart;
 	isPointerCancel = __isPointerCancel;
+	isPointerDown = __isTouchDown || __isMouseDown;
+
 	if (isPointerCancel)
 	{
 		isInterrupted = true;
-	} else if (isInterrupted)
+	}
+	else if (isInterrupted)
 	{
 		isInterrupted = !isPointerStart;
 	}
-	updateAverageDeltaTime();
-	
+	if (isPointerStart)
+	{
+		pointerStartLock_waitTime = currentTime + MAX(0.01f, averageDeltaTime * 2);
+	}
+
     windowWidth = width;
     windowHeight = height;
+	windowSmallSide = MIN(windowWidth, windowHeight);
+	windowLongSide = MAX(windowWidth, windowHeight);
+	lineWidth = 0.025f * windowSmallSide;
+	isPortrait = windowWidth < windowHeight;
+
     Clay_SetLayoutDimensions((Clay_Dimensions) { width, height });
     if (deltaTime == deltaTime) { // NaN propagation can cause pain here
         animationLerpValue += deltaTime;
@@ -394,9 +425,9 @@ CLAY_WASM_EXPORT("UpdateDrawFrame") Clay_RenderCommandArray UpdateDrawFrame(floa
 
     Clay__debugViewHighlightColor = (Clay_Color) {105,210,231, 120};
 
-    Clay_SetPointerState((Clay_Vector2) {mousePositionX, mousePositionY}, isMouseDown || isTouchDown);
+    Clay_SetPointerState((Clay_Vector2) {mousePositionX, mousePositionY}, isPointerDown);
 
-    Clay_UpdateScrollContainers(isTouchDown, (Clay_Vector2) {mouseWheelX, mouseWheelY}, deltaTime);
+    Clay_UpdateScrollContainers(__isTouchDown, (Clay_Vector2) {mouseWheelX, mouseWheelY}, deltaTime);
 
 	bool isMobileScreen = windowWidth < 750;
 

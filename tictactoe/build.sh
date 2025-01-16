@@ -14,7 +14,7 @@
 	-Wl,--strip-all                                                           \
 	-Wl,--export-dynamic                                                      \
 	-Wl,--no-entry                                                            \
-	-Wl,--export=averageDeltaTime                                             \
+	-Wl,--export=pointerStartLock_waitTime                                    \
 	-Wl,--export=__heap_base                                                  \
 	-Wl,--initial-memory=6553600                                              \
 	-o build/clay/index.wasm                                                  \

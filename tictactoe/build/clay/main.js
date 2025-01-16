@@ -540,6 +540,7 @@ function renderLoop(currentTime) {
 	window.arrowKeyUpPressedThisFrame = false;
 	window.arrowKeyDownPressedThisFrame = false;
 	window.dKeyPressedThisFrame = false;
+	window.touchStart = false;
 	window.pointerCancel = false;
 	window.touchStart = false;
 }
