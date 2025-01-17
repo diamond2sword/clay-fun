@@ -25,6 +25,7 @@ typedef struct WinSlope {
 uint8_t chk3(uint8_t init_index, uint8_t offset, uint8_t init_index_offset, uint8_t max_inits, ActivePlayer value);
 void resetBoard();
 void makeMove(int8_t cellIndex);
+bool isGameDone();
 
 extern ActivePlayer BOARD[9];
 extern ActivePlayer ACTIVE_PLAYER;
@@ -90,6 +91,10 @@ void makeMove(int8_t cellIndex)
 	updateWinner(ACTIVE_PLAYER);
 	ACTIVE_PLAYER = ACTIVE_PLAYER == ACTIVE_PLAYER_X ? ACTIVE_PLAYER_O : ACTIVE_PLAYER_X;
 	MOVE_COUNTER++;
+}
+bool isGameDone()
+{
+	return WINNER || MOVE_COUNTER == 9;
 }
 
 #endif // TTT_IMPLEMENTATION

@@ -1,2 +1,7 @@
-0a1
-> /data/data/com.termux/files/home/clay-fun/versions/tictactoe/3/tictactoe-3/ttt.h
+27a28
+> bool isGameDone();
+92a94,97
+> }
+> bool isGameDone()
+> {
+> 	return WINNER || MOVE_COUNTER == 9;

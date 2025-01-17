@@ -1,15 +1,13 @@
 #include <stdint.h>
-#include <stdio.h>
+
+#ifndef TTT_HEADERS
+#define TTT_HEADERS
 
 typedef enum : uint8_t {
 	ACTIVE_PLAYER_NONE,
 	ACTIVE_PLAYER_X,
 	ACTIVE_PLAYER_O
 } ActivePlayer;
-
-ActivePlayer BOARD[9] = {0};
-ActivePlayer ACTIVE_PLAYER = ACTIVE_PLAYER_X;
-ActivePlayer WINNER = ACTIVE_PLAYER_NONE;
 
 typedef enum : uint8_t {
 	WIN_SLOPE_NONE,
@@ -24,7 +22,27 @@ typedef struct WinSlope {
 	WinSlopeType slope2;
 } WinSlope;
 
+uint8_t chk3(uint8_t init_index, uint8_t offset, uint8_t init_index_offset, uint8_t max_inits, ActivePlayer value);
+void resetBoard();
+void makeMove(int8_t cellIndex);
+bool isGameDone();
+
+extern ActivePlayer BOARD[9];
+extern ActivePlayer ACTIVE_PLAYER;
+extern ActivePlayer WINNER;
+extern WinSlope BOARD_WIN_SLOPE_MAP[9];
+extern uint8_t MOVE_COUNTER;
+
+#endif // TTT_HEADERS
+
+#ifdef TTT_IMPLEMENTATION
+#undef TTT_IMPLEMENTATION
+
+ActivePlayer BOARD[9] = {0};
+ActivePlayer ACTIVE_PLAYER = ACTIVE_PLAYER_X;
+ActivePlayer WINNER = ACTIVE_PLAYER_NONE;
 WinSlope BOARD_WIN_SLOPE_MAP[9] = {0};
+uint8_t MOVE_COUNTER = 0;
 
 uint8_t chk3(uint8_t init_index, uint8_t offset, uint8_t init_index_offset, uint8_t max_inits, ActivePlayer value)
 {
@@ -35,18 +53,12 @@ uint8_t chk3(uint8_t init_index, uint8_t offset, uint8_t init_index_offset, uint
 	{
 		uint8_t cur_init_index = inits * init_index_offset;
 		uint8_t is_win_line = 1;
-		printf("    info: {slope: %d, init_index: %d}:   ", offset, init_index);
 		for (uint8_t cell_index = 0; cell_index < 3; cell_index++)
 		{
 			const uint8_t cur_index = init_index + cur_init_index + cell_index * offset;
-			if (BOARD[cur_index] == value)
-			{
-				printf("%d", cur_index);
-				continue;
-			}
+			if (BOARD[cur_index] == value) continue;
 			is_win_line = 0; break;
 		}
-		printf("\n");
 		if (is_win_line)
 		{
 			WINNER = value;
@@ -60,44 +72,29 @@ uint8_t chk3(uint8_t init_index, uint8_t offset, uint8_t init_index_offset, uint
 	}
 	return 0;
 }
-
-void updateWinner() {
-	chk3(0, 1, 3, 3, ACTIVE_PLAYER);
-	chk3(2, 2, 0, 1, ACTIVE_PLAYER);
-	chk3(0, 3, 1, 3, ACTIVE_PLAYER);
-	chk3(0, 4, 0, 1, ACTIVE_PLAYER);
+void updateWinner(ActivePlayer value) {
+	chk3(0, 1, 3, 3, value);
+	chk3(2, 2, 0, 1, value);
+	chk3(0, 3, 1, 3, value);
+	chk3(0, 4, 0, 1, value);
 }
-
-void mark(uint8_t row, uint8_t col)
+void resetBoard() {
+	for (int i = 0; i < 9; i++) BOARD[i] = 0;
+	WINNER = ACTIVE_PLAYER_NONE;
+	MOVE_COUNTER = 0;
+	ACTIVE_PLAYER = ACTIVE_PLAYER_X;
+}
+void makeMove(int8_t cellIndex)
 {
-	const uint8_t index = row * 3 + col;
-	char msg_token = 'S';
-	if (WINNER)
-	{
-		printf("WINNER: %d\n", WINNER);
-		return;
-	}
-	if (BOARD[index] == ACTIVE_PLAYER_NONE)
-	{
-		BOARD[index] = ACTIVE_PLAYER;
-		updateWinner();
-		msg_token = 'S';
-	}
-	else
-	{
-		msg_token = 'E';
-	}
-	printf("%c: BOARD[%d] = %d, input: {index: %d, value: %d}, winner = %d\n",
-		msg_token, index, BOARD[index], index, ACTIVE_PLAYER, WINNER);
+	if (WINNER || BOARD[cellIndex]) return;
+	BOARD[cellIndex] = ACTIVE_PLAYER;
+	updateWinner(ACTIVE_PLAYER);
 	ACTIVE_PLAYER = ACTIVE_PLAYER == ACTIVE_PLAYER_X ? ACTIVE_PLAYER_O : ACTIVE_PLAYER_X;
+	MOVE_COUNTER++;
+}
+bool isGameDone()
+{
+	return WINNER || MOVE_COUNTER == 9;
 }
 
-
-int main() {
-	mark(0, 2); mark(0, 0);
-	mark(1, 1); mark(2, 1);
-	mark(2, 0); mark(1, 2);
-	mark(1, 0); mark(2, 0);
-	mark(2, 2);
-	return 0;
-}
+#endif // TTT_IMPLEMENTATION

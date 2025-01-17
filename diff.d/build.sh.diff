@@ -1,0 +1,4 @@
+17c17
+< 	-Wl,--export=averageDeltaTime                                             \
+---
+> 	-Wl,--export=pointerStartLock_waitTime                                    \
