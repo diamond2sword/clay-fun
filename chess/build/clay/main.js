@@ -65,13 +65,20 @@ let scrollConfigDefinition = { name: 'text', type: 'struct', members: [
 	{ name: 'horizontal', type: 'bool' },
 	{ name: 'vertical', type: 'bool' },
 ]};
+let boundingBoxDefinition = { type: 'struct', members: [
+	{ name: 'x', type: 'float' },
+	{ name: 'y', type: 'float' },
+	{ name: 'width', type: 'float' },
+	{ name: 'height', type: 'float' },
+]}
 let imageConfigDefinition = { name: 'image', type: 'struct', members: [
 	{ name: 'imageData', type: 'uint32_t' },
 	{ name: 'sourceDimensions', type: 'struct', members: [
 		{ name: 'width', type: 'float' },
 		{ name: 'height', type: 'float' },
 	]},
-	{ name: 'sourceURL', ...stringDefinition }
+	{ name: 'sourceURL', ...stringDefinition },
+	{ name: 'subrectangle', ...boundingBoxDefinition },
 ]};
 let customConfigDefinition = { name: 'custom', type: 'struct', members: [
 	{ name: 'customData', type: 'uint32_t' },
@@ -80,12 +87,7 @@ let renderCommandDefinition = {
 	name: 'CLay_RenderCommand',
 	type: 'struct',
 	members: [
-		{ name: 'boundingBox', type: 'struct', members: [
-			{ name: 'x', type: 'float' },
-			{ name: 'y', type: 'float' },
-			{ name: 'width', type: 'float' },
-			{ name: 'height', type: 'float' },
-		]},
+		{ name: 'boundingBox', ...boundingBoxDefinition },
 		{ name: 'config', type: 'uint32_t'},
 		{ name: 'text', ...stringDefinition },
 		{ name: 'id', type: 'uint32_t' },
@@ -674,7 +676,23 @@ function renderLoopCanvas() {
 					imageCache[src].image.onload = () => imageCache[src].loaded = true;
 					imageCache[src].image.src = src;
 				} else if (imageCache[src].loaded) {
-					ctx.drawImage(imageCache[src].image, boundingBox.x.value * scale, boundingBox.y.value * scale, boundingBox.width.value * scale, boundingBox.height.value * scale);
+					if (config.subrectangle.width.value * config.subrectangle.height.value == 0) {
+						ctx.drawImage(imageCache[src].image,
+							boundingBox.x.value * scale,
+							boundingBox.y.value * scale,
+							boundingBox.width.value * scale,
+							boundingBox.height.value * scale);
+					} else {
+						ctx.drawImage(imageCache[src].image,
+							config.subrectangle.x.value,
+							config.subrectangle.y.value,
+							config.subrectangle.width.value,
+							config.subrectangle.height.value,
+							boundingBox.x.value * scale,
+							boundingBox.y.value * scale,
+							boundingBox.width.value * scale,
+							boundingBox.height.value * scale);
+					}
 				}
 				break;
 			}

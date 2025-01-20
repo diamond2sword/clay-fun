@@ -1,4 +1,2 @@
-17c17
-< 	-Wl,--export=averageDeltaTime                                             \
----
-> 	-Wl,--export=pointerStartLock_waitTime                                    \
+0a1
+> /data/data/com.termux/files/home/clay-fun/versions/chess/1/chess-1/build.sh
