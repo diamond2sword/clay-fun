@@ -1,36 +1,10 @@
 #include "web_clay.h"
 
-#ifndef CLAY_HELPERS
-#define CLAY_HELPERS
-
-#define RGBA(r, g, b, a) (Clay_Color){r, g, b, a}
-#define RGB(r, g, b) RGBA(r, g, b, 255)
-
-#define COLOR_NONE RGBA(0, 0, 0, 0)
-#define COLOR_BLACK RGB(0, 0, 0)
-#define COLOR_WHITE RGB(255, 255, 255)
-
-
-Clay_Color Color_AsFaded(Clay_Color color);
-
-//#define DIRECTION(token) (Clay_LayoutDirection)CLAY_##token
-
-#define SIZING_FIXED(width, height) (Clay_Sizing){CLAY_SIZING_FIXED(width), CLAY_SIZING_FIXED(height)}
-
-#define SIZING_PERCENT(width, length) (Clay_Sizing){CLAY_SIZING_PERCENT((float)width), CLAY_SIZING_PERCENT((float)length)}
-
-#define SIZING_GROW(...) (Clay_Sizing){CLAY_SIZING_GROW(__VA_ARGS__), CLAY_SIZING_GROW(__VA_ARGS__)}
-
-
-#define CHILD_ALIGN(x, y) (Clay_ChildAlignment){CLAY_ALIGN_X_##x, CLAY_ALIGN_Y_##y}
-#define ATTACH_POINTS(element, parent) (Clay_FloatingAttachPoints){CLAY_ATTACH_POINT_##element, CLAY_ATTACH_POINT_##parent}
-
-
-#define GET_DATA(string) Clay_GetElementData(Clay_GetElementId(CLAY_STRING(string)))
 
 
 
-
+#ifndef TTT_CLAY_HEADER
+#define TTT_CLAY_HEADER
 
 #define CLAY_BOX(elementId, __VA_ARGS__2, ...) \
 	CLAY( \
@@ -83,31 +57,54 @@ typedef struct Clay_BoxElementConfig {
 	Clay_BoxSizing sizing;
 } Clay_BoxElementConfig;
 
+#define SET_COLOR(name, ...) const Clay_Color COLOR_##name = (Clay_Color) {__VA_ARGS__}
+Clay_Color Color_AsFaded(Clay_Color color);
 
-#endif // CLAY_HELPERS
+#endif // TTT_CLAY_HEADER
 
 
-#ifdef CLAY_HELPERS_IMPLEMENTATION
-#undef CLAY_HELPERS_IMPLEMENTATION
+
+
+#ifdef TTT_CLAY_IMPLEMENTATION
+#undef TTT_CLAY_IMPLEMENTATION
+
+#define CLAY_IMPLEMENTATION
+#include "web_clay.h"
+
 Clay_BoxElementConfig boxConfig;
 Clay_LayoutConfig layoutConfig;
 Clay_RectangleElementConfig rectangleConfig;
 Clay_FloatingElementConfig floatingConfig;
 Clay_TextElementConfig textConfig;
 
-float lineWidth;
-uint32_t CLAY_LABEL_INDEX = 0;
-const uint32_t FONT_ID_TEXT = 0;
 double windowWidth = 1024, windowHeight = 768;
 double windowSmallSide;
 double windowLongSide;
 bool isPortrait;
-bool isMobileScreen;
 
+float lineWidth;
+uint32_t CLAY_LABEL_INDEX = 0;
+const uint32_t FONT_ID_TEXT = 0;
 
 Clay_Color Color_AsFaded(Clay_Color color) 
 {
 	color.a /= 2;
 	return color;
 }
-#endif // CLAY_HELPERS_IMPLEMENTATION
+
+SET_COLOR(WHITE, 255, 255, 255, 255);
+SET_COLOR(BLACK, 0, 0, 0, 255);
+SET_COLOR(RED, 255, 0, 0, 255);
+SET_COLOR(GREEN, 0, 255, 0, 255);
+SET_COLOR(NONE, 0, 0, 0, 0);
+SET_COLOR(YELLOW, 255, 255, 0, 255);
+SET_COLOR(BLUE, 0, 0, 255, 255);
+
+const Clay_Color COLOR_PLAYER_X = COLOR_BLUE;
+const Clay_Color COLOR_PLAYER_O = COLOR_YELLOW;
+
+const Clay_Sizing sizingGrow = {CLAY_SIZING_GROW(), CLAY_SIZING_GROW()};
+const Clay_ChildAlignment centerXY = {CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER};
+
+
+#endif // TTT_CLAY_IMPLEMENTATION

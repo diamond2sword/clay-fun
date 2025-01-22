@@ -12,6 +12,7 @@ let scratchSpaceAddress = 8;
 let heapSpaceAddress = 0;
 let memoryDataView;
 let textDecoder = new TextDecoder("utf-8");
+let deltaTime;
 let previousFrameTime;
 let fontsById = [
 	'JetBrainsMono',
@@ -189,54 +190,52 @@ async function init() {
 	function handleTouch (event) {
 		if (event.touches.length === 1) {
 			window.touchDown = true;
-			let target = event.target;
-			let scrollTop = 0;
-			let scrollLeft = 0;
-			/*
-			let activeRendererIndex = memoryDataView.getUint32(instance.exports.ACTIVE_RENDERER_INDEX.value, true);
-			while (activeRendererIndex !== 1 && target) {
-				scrollLeft += target.scrollLeft;
-				scrollTop += target.scrollTop;
-				target = target.parentElement;
-			}
-			*/
-			window.mousePositionXThisFrame = event.changedTouches[0].pageX + scrollLeft;
-			window.mousePositionYThisFrame = event.changedTouches[0].pageY + scrollTop;
+			window.mousePositionXThisFrame = event.changedTouches[0].pageX;
+			window.mousePositionYThisFrame = event.changedTouches[0].pageY;
 		}
 	}
 
-	document.addEventListener("touchstart", handleTouch);
-	document.addEventListener("touchmove", handleTouch);
+	document.addEventListener("touchstart", (event) => {
+		handleTouch(event);
+		window.touchStart = true;
+		console.log('touchstart');
+	});
+	document.addEventListener("touchmove", (event) => {
+		handleTouch(event);
+		console.log('touchmove');
+	});
 	document.addEventListener("touchend", () => {
 		window.touchDown = false;
-		window.mousePositionXThisFrame = 0;
-		window.mousePositionYThisFrame = 0;
-	})
+		console.log('touchend');
+	});
 
+	document.addEventListener("touchcancel", () => {
+		window.touchCancel = true;
+		console.log('touchcancel');
+	})
+	
 	document.addEventListener("mousemove", (event) => {
-		let target = event.target;
-		let scrollTop = 0;
-		let scrollLeft = 0;
-		/*
-		let activeRendererIndex = memoryDataView.getUint32(instance.exports.ACTIVE_RENDERER_INDEX.value, true);
-		while (activeRendererIndex !== 1 && target) {
-			scrollLeft += target.scrollLeft;
-			scrollTop += target.scrollTop;
-			target = target.parentElement;
-		}
-		*/
-		window.mousePositionXThisFrame = event.x + scrollLeft;
-		window.mousePositionYThisFrame = event.y + scrollTop;
+		window.mousePositionXThisFrame = event.x;
+		window.mousePositionYThisFrame = event.y;
+		console.log('mousemove');
 	});
 
 	document.addEventListener("mousedown", (event) => {
 		window.mouseDown = true;
 		window.mouseDownThisFrame = true;
+		console.log('mousedown');
 	});
 
 	document.addEventListener("mouseup", (event) => {
 		window.mouseDown = false;
+		console.log('mouseup');
 	});
+	
+	document.addEventListener("mousecancel", () => {
+		window.mouseCancel = true;
+		console.log('mousecancel');
+	});
+
 
 	document.addEventListener("keydown", (event) => {
 		if (event.key === "ArrowDown") {
@@ -284,6 +283,7 @@ async function init() {
 	memoryDataView.setFloat32(instance.exports.__heap_base.value + 4, window.innerHeight, true);
 	instance.exports.Clay_Initialize(arenaAddress, instance.exports.__heap_base.value);
 	renderCommandSize = getStructTotalSize(renderCommandDefinition);
+	instance.exports.Init();
 	renderLoop();
 }
 
@@ -702,42 +702,29 @@ function renderLoopCanvas() {
 }
 
 function renderLoop(currentTime) {
-	const elapsed = currentTime - previousFrameTime;
+	currentTime /= 1000;
+	deltaTime = currentTime - previousFrameTime;
 	previousFrameTime = currentTime;
-	/*
-	let activeRendererIndex = memoryDataView.getUint32(instance.exports.ACTIVE_RENDERER_INDEX.value, true);
-	if (activeRendererIndex === 0) {
-		instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, 0, 0, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, 0, 0, window.dKeyPressedThisFrame, elapsed / 1000);
-	} else {
-		instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, window.mouseWheelXThisFrame, window.mouseWheelYThisFrame, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, window.arrowKeyDownPressedThisFrame, window.arrowKeyUpPressedThisFrame, window.dKeyPressedThisFrame, elapsed / 1000);
-	}
-	let rendererChanged = activeRendererIndex !== window.previousActiveRendererIndex;
-	switch (activeRendererIndex) {
-		case 0: {
-			renderLoopHTML();
-			if (rendererChanged) {
-				window.htmlRoot.style.display = 'block';
-				window.canvasRoot.style.display = 'none';
-			}
-			break;
-		}
-		case 1: {
-			renderLoopCanvas();
-			if (rendererChanged) {
-				window.htmlRoot.style.display = 'none';
-				window.canvasRoot.style.display = 'block';
-			}
-			break;
-		}
-	}
-	window.previousActiveRendererIndex = activeRendererIndex;
-	*/
-	instance.exports.UpdateDrawFrame(scratchSpaceAddress, window.innerWidth, window.innerHeight, window.mouseWheelXThisFrame, window.mouseWheelYThisFrame, window.mousePositionXThisFrame, window.mousePositionYThisFrame, window.touchDown, window.mouseDown, window.arrowKeyDownPressedThisFrame, window.arrowKeyUpPressedThisFrame, window.dKeyPressedThisFrame, elapsed / 1000);
+
+	instance.exports.UpdateDrawFrame(
+		scratchSpaceAddress, window.innerWidth, window.innerHeight,
+		window.mouseWheelXThisFrame, window.mouseWheelYThisFrame,
+		window.mousePositionXThisFrame, window.mousePositionYThisFrame,
+		window.touchDown, window.mouseDown,
+		window.touchStart, window.mouseDownThisFrame,
+		window.touchCancel, window.mouseCancel,
+		window.arrowKeyDownPressedThisFrame, window.arrowKeyUpPressedThisFrame,
+		window.dKeyPressedThisFrame, 
+		currentTime, deltaTime);
+
 	renderLoopCanvas();
 	requestAnimationFrame(renderLoop);
-	window.mouseDownThisFrame = false;
 	window.arrowKeyUpPressedThisFrame = false;
 	window.arrowKeyDownPressedThisFrame = false;
 	window.dKeyPressedThisFrame = false;
+	window.touchStart = false;
+	window.mouseDownThisFrame = false;
+	window.touchCancel = false;
+	window.mouseCancel = false;
 }
 init();

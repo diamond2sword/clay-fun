@@ -1,9 +1,6 @@
 #include "clay.h"
 #include "clay_helpers.h"
 
-
-
-
 #ifndef BOARD_SURFACE_HEADER
 #define BOARD_SURFACE_HEADER
 

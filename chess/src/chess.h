@@ -4,6 +4,47 @@
 #ifndef CHESS_HEADER
 #define CHESS_HEADER
 
+typedef enum PieceType : uint8_t {
+	PIECE_TYPE_NONE,
+	PIECE_TYPE_KING,
+	PIECE_TYPE_QUEEN,
+	PIECE_TYPE_BISHOP,
+	PIECE_TYPE_KNIGHT,
+	PIECE_TYPE_ROOK,
+	PIECE_TYPE_PAWN
+} PieceType;
+
+typedef enum PieceColor : uint8_t {
+	PIECE_COLOR_WHITE = 0,
+	PIECE_COLOR_BLACK = 8
+} PieceColor;
+
+typedef struct CastlingSides {
+	bool whiteKing;
+	bool whiteQueen;
+	bool blackKing;
+	bool blackQueen;
+} CastlingSides;
+
+typedef struct StringIndex {
+	const char * chars;
+	uint32_t length;
+} StringIndex;
+
+PieceType PieceType_FromChar(char c);
+PieceColor PieceColor_FromChar(char c);
+bool ContainsChar(const char c, StringIndex string);
+uint32_t CountChar(const char c, StringIndex string);
+uint32_t Stringlength(const char * string);
+int ChessInit_FromString(StringIndex fen);
+#define ChessInit_Default() ChessInit_FromString(STRING("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"));
+#define Piece_GetType(index) (BOARD[index] & 0b111)
+#define Piece_GetColor(index) ((BOARD[index] & 0b1000) >> 3)
+#define Piece_HasType(index, type) (Piece_GetType(index) == type)
+#define Piece_HasColor(index, color) (Piece_GetColor(index) == color)
+bool Piece_IsSelectable(uint8_t index);
+
+
 #ifdef CHESS_VERBOSE
 	#include <stdio.h>
 	#define err(do_after, msg, ...) { \
@@ -22,8 +63,12 @@
 		printf(": "); \
 	}
 	#define err_varn(fmt, name, ...) {err_var(fmt, name, ##__VA_ARGS__); printf("\n");}
+	#define err_pause(...) do {__VA_ARGS__} while (getchar() != '\n') 
 #else
 	#define err(do_after, ...) do_after;
+	#define err_var(...)
+	#define err_varn(...)
+	#define err_pause(...)
 #endif // CHESS_VERBOSE
 
 
@@ -38,50 +83,9 @@
 
 #define __INIT(type) (type)
 
-
-typedef enum PieceType : uint8_t {
-	PIECE_NONE,
-	PIECE_KING,
-	PIECE_QUEEN,
-	PIECE_BISHOP,
-	PIECE_KNIGHT,
-	PIECE_ROOK,
-	PIECE_PAWN
-} PieceType;
-
-typedef enum PieceColor : uint8_t {
-	PIECE_WHITE = 0,
-	PIECE_BLACK = 8
-} PieceColor;
-
-typedef struct CastlingSides {
-	bool whiteKing;
-	bool whiteQueen;
-	bool blackKing;
-	bool blackQueen;
-} CastlingSides;
-
-typedef struct StringIndex {
-	const char * chars;
-	uint32_t length;
-} StringIndex;
-
-extern uint8_t BOARD[64];
-extern CastlingSides CASTLING_SIDES;
-extern bool IS_WHITE_TO_MOVE;
-extern int8_t EN_PASSANT_INDEX;
-extern int16_t HALF_MOVE_COUNTER;
-extern int16_t FULL_MOVE_COUNTER;
-
-PieceType PieceType_FromChar(char c);
-PieceColor PieceColor_FromChar(char c);
-bool ContainsChar(const char c, StringIndex string);
-uint32_t CountChar(const char c, StringIndex string);
-uint32_t Stringlength(const char * string);
-int ChessInit_FromString(StringIndex fen);
-#define ChessInit_Default() ChessInit_FromString(STRING("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"));
-
 #endif // CHESS_HEADER
+
+
 
 
 #ifdef CHESS_IMPLEMENTATION
@@ -89,10 +93,17 @@ int ChessInit_FromString(StringIndex fen);
 
 CastlingSides CASTLING_SIDES = {0};
 uint8_t BOARD[64] = {0};
-bool IS_WHITE_TO_MOVE = true;
+PieceColor ACTIVE_COLOR = PIECE_COLOR_WHITE;
 int8_t EN_PASSANT_INDEX = -1;
 int16_t HALF_MOVE_COUNTER = 0;
 int16_t FULL_MOVE_COUNTER = 1;
+
+
+bool Piece_IsSelectable(uint8_t index)
+{
+	return !Piece_HasType(index, PIECE_TYPE_NONE)
+	&& Piece_HasColor(index, ACTIVE_COLOR);
+}
 
 PieceType PieceType_FromChar(char c)
 {
@@ -100,19 +111,19 @@ PieceType PieceType_FromChar(char c)
 		c += 'a' - 'A';
 	}
 	switch (c) {
-	case 'k': return PIECE_KING;
-	case 'q': return PIECE_QUEEN;
-	case 'b': return PIECE_BISHOP;
-	case 'n': return PIECE_KNIGHT;
-	case 'r': return PIECE_ROOK;
-	case 'p': return PIECE_PAWN;
-	default: return PIECE_NONE;
+	case 'k': return PIECE_TYPE_KING;
+	case 'q': return PIECE_TYPE_QUEEN;
+	case 'b': return PIECE_TYPE_BISHOP;
+	case 'n': return PIECE_TYPE_KNIGHT;
+	case 'r': return PIECE_TYPE_ROOK;
+	case 'p': return PIECE_TYPE_PAWN;
+	default: return PIECE_TYPE_NONE;
 	}
 }
 
 PieceColor PieceColor_FromChar(char c)
 {
-	return (PieceColor)((c >= 'A' && c <= 'Z') << 3);
+	return (c >= 'A' && c <= 'Z') ? PIECE_COLOR_WHITE : PIECE_COLOR_BLACK;
 }
 
 bool ContainsChar(const char c, StringIndex string)
@@ -176,7 +187,7 @@ int ChessInit_FromString(StringIndex fen)
 	{
 		for (uint8_t i = 0; i < 64; i++)
 		{
-			BOARD[i] = PIECE_NONE;
+			BOARD[i] = PIECE_TYPE_NONE;
 		}
 		const StringIndex field = fieldIndexes[0];
 		for (uint8_t i = 0, row = 0, col = 0; i < field.length; i++)
@@ -190,7 +201,7 @@ int ChessInit_FromString(StringIndex fen)
 				col += c - '1' + 1;
 				continue;
 			}
-			if (PieceType_FromChar(c) == PIECE_NONE) {
+			if (PieceType_FromChar(c) == PIECE_TYPE_NONE) {
 				err(return 1, "not a char for piece type", err_var("%c", c));
 			}
 			BOARD[row * 8 + col] = PieceType_FromChar(c) | PieceColor_FromChar(c);
@@ -214,7 +225,7 @@ int ChessInit_FromString(StringIndex fen)
 		if (!ContainsChar(c, STRING("wb"))) {
 			err(return 1, "not a char for piece color", err_var("%c", c));
 		}
-		IS_WHITE_TO_MOVE = c == 'w';
+		ACTIVE_COLOR = c == 'w' ? PIECE_COLOR_WHITE : PIECE_COLOR_BLACK;
 	}
 
 	// FIELD 2
@@ -311,7 +322,7 @@ int ChessInit_FromString(StringIndex fen)
 		printf(" %2d", BOARD[i]);
 		if (i == 63) printf("\n");
 	}
-	err_varn("%d", IS_WHITE_TO_MOVE);
+	err_varn("%d", ACTIVE_COLOR);
 	err_varn("%d", CASTLING_SIDES.blackKing);
 	err_varn("%d", CASTLING_SIDES.blackQueen);
 	err_varn("%d", CASTLING_SIDES.whiteKing);
@@ -325,7 +336,7 @@ int ChessInit_FromString(StringIndex fen)
 }
 
 
-#endif
+#endif // CHESS_IMPLEMENTATION
 
 #ifdef CHESS_MAIN
 #undef CHESS_MAIN
