@@ -1,2 +1,420 @@
 0a1
-> /data/data/com.termux/files/home/clay-fun/versions/chess/1/chess-1/src/main.c
+> #include <stdarg.h>
+17a19,22
+> #define MY_MATH_IMPLEMENTATION
+> #include "math.h"
+> 
+> 
+31a37,49
+> typedef struct Piece {
+> 	uint8_t index;
+> 	PieceSideIndex side;
+> 	PieceTypeIndex type;
+> } Piece;
+> 
+> Piece Piece_New(Bitboards_All bitboardSet, uint8_t index)
+> {
+> 	return (Piece){index,
+> 		Piece_GetSideIndex(bitboardSet, index),
+> 		Piece_GetTypeIndex(bitboardSet, index)};
+> }
+> 
+33,34c51,52
+< 	uint8_t src;
+< 	uint8_t dst;
+---
+> 	Piece src;
+> 	Piece dst;
+36a55,70
+> Move Move_New(Bitboards_All bitboardSet, uint8_t srcIndex, uint8_t dstIndex)
+> {
+> 	return (Move){
+> 		Piece_New(bitboardSet, srcIndex),
+> 		Piece_New(bitboardSet, dstIndex)};
+> }
+> 
+> typedef enum PiecePromotionIndex : uint8_t {
+> 	PIECE_PROMOTION_INDEX_QUEEN,
+> 	PIECE_PROMOTION_INDEX_ROOK,
+> 	PIECE_PROMOTION_INDEX_BISHOP,
+> 	PIECE_PROMOTION_INDEX_KNIGHT,
+> 	PIECE_PROMOTION_INDEX_NONE,
+> 	PIECE_PROMOTION_INDEX_COUNT,
+> } PiecePromotionIndex;
+> 
+40c74,76
+< bool IsPawnMove(uint8_t index)
+---
+> uint64_t MOVES_BITBOARD = MASK_EMPTY;
+> uint64_t MOVABLES_BITBOARD = MASK_EMPTY;
+> bool Piece_IsMove(uint8_t index)
+41a78
+> /*
+43,44c80
+< 	#define Piece_RowMask(row) 0xFFULL << (row * 8);
+< 	bool isBlack = Piece_HasColor(SRC_CELL_INDEX, PIECE_COLOR_BLACK);
+---
+> 	bool isBlack = Piece_HasSideIndex(SRC_CELL_INDEX, PIECE_SIDE_INDEX_BLACK);
+49,54c85,98
+< 	uint8_t forwardOnceIndex = SRC_CELL_INDEX + 8 * forwardSign;
+< 	bool canForwardOnce = Piece_HasType(forwardOnceIndex, PIECE_TYPE_NONE);
+< 	bool isForwardOnce = canForwardOnce && index == forwardOnceIndex;
+< 	uint8_t forwardTwiceIndex = SRC_CELL_INDEX + 16 * forwardSign;
+< 	bool canForwardTwice = canForwardOnce && Piece_HasType(forwardTwiceIndex, PIECE_TYPE_NONE);
+< 	bool isForwardTwice = canForwardTwice && index == forwardTwiceIndex;
+---
+> 
+> 	uint8_t forwardOnceIndex
+> 		= SRC_CELL_INDEX + 8 * forwardSign;
+> 	bool canForwardOnce
+> 		= Piece_HasTypeIndex(forwardOnceIndex, PIECE_TYPE_INDEX_NONE);
+> 	bool isForwardOnce
+> 		= canForwardOnce && index == forwardOnceIndex;
+> 
+> 	uint8_t forwardTwiceIndex
+> 		= SRC_CELL_INDEX + 16 * forwardSign;
+> 	bool canForwardTwice
+> 		= canForwardOnce && Piece_HasTypeIndex(forwardTwiceIndex, PIECE_TYPE_INDEX_NONE);
+> 	bool isForwardTwice
+> 		= canForwardTwice && index == forwardTwiceIndex;
+57c101,105
+< 	return isForwardOnce || isForwardTwice;
+---
+> 	uint64_t occupied = MASK_ALL;
+> 	uint64_t single_step = MASK_INDEX(index) & (MASK_INDEX(SRC_CELL_INDEX + DIRECT(ACTIVE_SIDE, OFFSET_UP)));
+> 	uint64_t double_push =  single_push & MASK_INDEX(SRC_CELL_INDEX + DIRECT(ACTIVE_SIDE, OFFSET_UP));
+> */
+> 	return MASK_INDEX(index) & MOVES_BITBOARD;
+63a112
+> /*
+66,67c115,116
+< 	switch (Piece_GetType(index)) {
+< //	case PIECE_TYPE_PAWN: return IsPawnMove;
+---
+> 	switch (Piece_GetTypeIndex(index)) {
+> 	case PIECE_TYPE_INDEX_PAWN: return;
+70a120,209
+> */
+> #define OFFSET_FORWARD DIRECT_OFFSET_SIGN(ACTIVE_SIDE) * OFFSET_UP
+> #define OFFSET_UP -8
+> #define OFFSET_DOWN 8
+> #define OFFSET_LEFT -1
+> #define MASK_ROW_0 0xFFULL
+> #define MASK_COL_0 0x0101010101010101ULL
+> 
+> #define IN_RANGE(x, min, max) ((x) >= (min) && (x) <= (max))
+> #define IF_IN_RANGE(x, min, max, forTrue, forFalse) (IN_RANGE((x), (min), (max)) ? (forTrue) : (forFalse))
+> #define IF_SIDE(side, forNone, forWhite, forBlack) ((side) == PIECE_SIDE_INDEX_NONE ? (forNone) : (side) == PIECE_SIDE_INDEX_WHITE ? (forWhite) : (forBlack))
+> 	
+> #define Index_AsRow(index) (uint8_t)floorf((index) / 8.f)
+> #define Index_AsCol(index) ((index) % 8)
+> 
+> #define MASK_ROW(row) IF_IN_RANGE(row, 0, 7, MASK_ROW_0 << ((row) * 8), MASK_EMPTY)
+> #define MASK_COL(col) IF_IN_RANGE(col, 0, 7, MASK_COL_0 << (col), MASK_EMPTY)
+> 
+> #define Mask_GetRow(row, mask) (MASK_ROW(row) & mask)
+> 
+> #define SIDE_NEGATE(side) IF_SIDE(side, side, PIECE_SIDE_INDEX_BLACK, PIECE_SIDE_INDEX_WHITE)
+> #define DIRECT_OFFSET_SIGN(side) IF_SIDE(side, 0, 1, -1)
+> #define MASK_INDEX_SIGNED(index) (index < 0 ? MASK_EMPTY : MASK_INDEX(index))
+> 		
+> 
+> #define MASK_INDEX_VA_ARGS(funcName, maskIndexFunc) \
+> uint64_t funcName(uint32_t count, ...) \
+> { \
+> 	va_list args; \
+> 	va_start(args, count); \
+> 	uint64_t mask_result = MASK_EMPTY; \
+> 	for (uint32_t i = 0; i < count; i++) \
+> 	{ \
+> 		uint32_t index = va_arg(args, uint32_t); \
+> 		mask_result |= maskIndexFunc(index); \
+> 	} \
+> 	return mask_result; \
+> }
+> MASK_INDEX_VA_ARGS(Mask_Rows, MASK_ROW);
+> MASK_INDEX_VA_ARGS(Mask_Cols, MASK_COL);
+> 
+> uint64_t Direct_Rows(PieceSideIndex side, uint64_t mask)
+> {
+> 
+> 	if (side != PIECE_SIDE_INDEX_BLACK) return mask;
+> 	uint64_t mask_result = MASK_EMPTY;
+> 	for (uint8_t i = 0; i < 8; i++)
+> 	{
+> 		mask_result |= (Mask_GetRow(i, mask) >> (i * 8)) << ((7 - i) * 8);
+> 	}
+> 	return mask_result;
+> }
+> 
+> uint64_t Mask_Moves(uint8_t index, PieceSideIndex side, PieceTypeIndex type) {
+> 	uint8_t col = Index_AsCol(index);
+> 	uint8_t row = Index_AsRow(index);
+> 	int8_t offsetSign = DIRECT_OFFSET_SIGN(ACTIVE_SIDE);
+> 	int8_t offsetForward = OFFSET_FORWARD;
+> 	PieceSideIndex inactiveSide = SIDE_NEGATE(ACTIVE_SIDE);
+> 	uint64_t mask_unoccupied = ~MASK_ALL(BITBOARD_SET);
+> 	uint64_t mask_enemy = Mask_Side(BITBOARD_SET, inactiveSide);
+> 	switch (Piece_GetTypeIndex(BITBOARD_SET, index)) {
+> 	case PIECE_TYPE_INDEX_PAWN: {
+> 		uint64_t mask_enPassantTarget = MASK_INDEX_SIGNED(EN_PASSANT_TARGET_INDEX);
+> 		uint64_t mask_unmovePawnsRow = Direct_Rows(ACTIVE_SIDE, MASK_ROW(6));
+> 		uint64_t mask_asUnmovedPawn = MASK_INDEX(index) & mask_unmovePawnsRow;
+> 		uint64_t mask_singleForward = mask_unoccupied & MASK_INDEX(index + offsetForward);
+> 		uint64_t mask_captures = Mask_Cols(2, col - 1, col + 1) & MASK_ROW(row - offsetSign) & (mask_enemy | mask_enPassantTarget);
+> 		uint64_t mask_doubleForward = (mask_asUnmovedPawn && mask_singleForward) ? mask_unoccupied & MASK_INDEX(index + offsetForward * 2) : MASK_EMPTY;
+> 		return mask_singleForward | mask_doubleForward | mask_captures;
+> 		break;
+> 	} default: return MASK_EMPTY;
+> 	}
+> }
+> uint64_t Mask_Movables()
+> {
+> 	uint64_t mask_result = MASK_EMPTY;
+> 	for (uint8_t i = 0; i < 64; i++)
+> 	{
+> 		if (Piece_HasSideIndex(BITBOARD_SET, i, ACTIVE_SIDE) && Mask_Moves(i, Piece_GetSideIndex(BITBOARD_SET, i), Piece_GetTypeIndex(BITBOARD_SET, i)))
+> 		{
+> 			mask_result |= MASK_INDEX(i);
+> 		}
+> 	}
+> 	return mask_result;
+> }
+> bool Piece_IsMovable(uint8_t index)
+> {
+> 	return MASK_INDEX(index) & MOVABLES_BITBOARD;
+> }
+73c212,214
+< void BoardClick()
+---
+> int8_t OPT_CELL_INDEX = -1;
+> PieceTypeIndex PIECE_TYPE_PROMOTION = PIECE_TYPE_INDEX_NONE;
+> void BoardClick_Phase_SelectSource()
+75c216
+< 	if (SRC_CELL_INDEX == -1)
+---
+> 	if (Piece_IsMovable(CELL_INDEX))
+77c218,266
+< 		if (IsCellSelectableFunc(CELL_INDEX))
+---
+> 		SRC_CELL_INDEX = CELL_INDEX;
+> 		MOVES_BITBOARD = Mask_Moves(SRC_CELL_INDEX, ACTIVE_SIDE, Piece_GetTypeIndex(BITBOARD_SET, SRC_CELL_INDEX));
+> 		IsCellSelectableFunc = Piece_IsMove;
+> 	}
+> }
+> void BoardClick_Phase_ResetAuto()
+> {
+> 	// reset click phase
+> 	SRC_CELL_INDEX = -1;
+> 	DST_CELL_INDEX = -1;
+> 	IsCellSelectableFunc = Piece_IsMovable;
+> 	// skip src phase if selected is movable
+> 	BoardClick_Phase_SelectSource();
+> }
+> void Board_Side_Reset()
+> {
+> 	RECENT_MOVE = (Move){0};
+> 	MOVABLES_BITBOARD = Mask_Movables();
+> }
+> void Board_Side_Switch()
+> {
+> 	// switch side
+> 	ACTIVE_SIDE = SIDE_NEGATE(ACTIVE_SIDE); 
+> 	// prepare side movables
+> 	Board_Side_Reset();
+> }
+> #define BitboardSet_Remove(bitboardSet, index, side, type) \
+> 	bitboardSet[side][type] &= ~MASK_INDEX(index)
+> 
+> #define BitboardSet_PutAttrs(bitboardSet, attrs, indexToken, sideToken, typeToken) BitboardSet_Put(bitboardSet, attrs.indexToken, attrs.sideToken, attrs.typeToken)
+> #define BitboardSet_RemoveAttrs(bitboardSet, attrs, indexToken, sideToken, typeToken) BitboardSet_Remove(bitboardSet, attrs.indexToken, attrs.sideToken, attrs.typeToken)
+> void BoardClick_Phase_MakeMove()
+> {
+> 	{
+> 		// make move
+> 		BitboardSet_RemoveAttrs(BITBOARD_SET, RECENT_MOVE, src.index, src.side, src.type);
+> 		BitboardSet_PutAttrs(BITBOARD_SET, RECENT_MOVE, dst.index, src.side, src.type);
+> 		BitboardSet_RemoveAttrs(BITBOARD_SET, RECENT_MOVE, dst.index, dst.side, dst.type);
+> 		/*
+> 		BITBOARD_SET[RECENT_MOVE.src.side][RECENT_MOVE.src.type] &= ~MASK_INDEX(RECENT_MOVE.src.index);
+> 		BITBOARD_SET[RECENT_MOVE.src.side][RECENT_MOVE.src.type] |= MASK_INDEX(RECENT_MOVE.dst.index);
+> 		BITBOARD_SET[RECENT_MOVE.dst.side][RECENT_MOVE.dst.type] &= ~MASK_INDEX(RECENT_MOVE.dst.index);
+> 		*/
+> 	}
+> 	int8_t index_enPassantTarget = EN_PASSANT_TARGET_INDEX;
+> 	EN_PASSANT_TARGET_INDEX = -1;
+> 	{
+> 		// make special move features
+> 		if (RECENT_MOVE.src.type == PIECE_TYPE_INDEX_PAWN)
+79,80c268,288
+< 			SRC_CELL_INDEX = CELL_INDEX;
+< 			IsCellSelectableFunc = Piece_GetMoveChecker(SRC_CELL_INDEX);
+---
+> 			// pawn special features
+> 			// en passant pawn addition
+> 			if (RECENT_MOVE.dst.index == RECENT_MOVE.src.index + OFFSET_UP * 2 * DIRECT_OFFSET_SIGN(RECENT_MOVE.src.side))
+> 			{
+> 				EN_PASSANT_TARGET_INDEX = RECENT_MOVE.src.index + OFFSET_UP * DIRECT_OFFSET_SIGN(RECENT_MOVE.src.side);
+> 			}
+> 			// en passant pawn deletion
+> 			else if (RECENT_MOVE.dst.index == index_enPassantTarget)
+> 			{
+> 				Piece enPassantPawn = Piece_New(BITBOARD_SET, RECENT_MOVE.dst.index + OFFSET_UP * DIRECT_OFFSET_SIGN(SIDE_NEGATE(RECENT_MOVE.src.side)));
+> 				BitboardSet_RemoveAttrs(BITBOARD_SET, enPassantPawn, index, side, type);
+> 				//BITBOARD_SET[enPassantPawn.side][enPassantPawn.type] &= ~MASK_INDEX(enPassantPawn.index);
+> 			}
+> 			else if (MASK_INDEX(RECENT_MOVE.dst.index) & Direct_Rows(RECENT_MOVE.src.side, MASK_ROW_0))
+> 			{
+> 				BitboardSet_RemoveAttrs(BITBOARD_SET, RECENT_MOVE, dst.index, src.side, src.type);
+> 				BitboardSet_Put(BITBOARD_SET, RECENT_MOVE.dst.index, RECENT_MOVE.src.side, PIECE_TYPE_PROMOTION);
+> 				PIECE_TYPE_PROMOTION = PIECE_TYPE_INDEX_NONE;
+> 				//BITBOARD_SET[RECENT_MOVE.src.side][RECENT_MOVE.src.type] &= ~MASK_INDEX(RECENT_MOVE.dst.index);
+> 				//BITBOARD_SET[RECENT_MOVE.src.side][PIECE_TYPE_PROMOTION] |= MASK_INDEX(RECENT_MOVE.dst.index);
+> 			}
+81a290,298
+> 	}
+> }
+> 
+> void BoardClick()
+> {
+> 	static bool enable_makeMove = false;
+> 	if (SRC_CELL_INDEX == -1)
+> 	{
+> 		BoardClick_Phase_SelectSource();
+85c302
+< 		if (IsCellSelectableFunc(CELL_INDEX))
+---
+> 		if (Piece_IsMove(CELL_INDEX))
+86a304
+> 			enable_makeMove = true;
+89c307
+< 			RECENT_MOVE = (Move){SRC_CELL_INDEX, DST_CELL_INDEX};
+---
+> 			RECENT_MOVE = Move_New(BITBOARD_SET, SRC_CELL_INDEX, DST_CELL_INDEX);
+90a309
+> 		else
+92,95c311,358
+< 			// reset 
+< 			SRC_CELL_INDEX = -1;
+< 			DST_CELL_INDEX = -1;
+< 			IsCellSelectableFunc = Piece_IsSelectable;
+---
+> 			BoardClick_Phase_ResetAuto();
+> 		}
+> 		{
+> 			// to trigger pawn promotion option selection
+> 			if (RECENT_MOVE.src.type == PIECE_TYPE_INDEX_PAWN)
+> 			{
+> 				if (MASK_INDEX(RECENT_MOVE.dst.index) & Direct_Rows(RECENT_MOVE.src.side, MASK_ROW_0))
+> 				{
+> 					enable_makeMove = false;
+> 					OPT_CELL_INDEX = RECENT_MOVE.dst.index;
+> 				}
+> 			}
+> 		}
+> 	}
+> 	else if (OPT_CELL_INDEX != -1)
+> 	{
+> 		OPT_CELL_INDEX = -1;
+> 		static const PieceTypeIndex map_optToType[PIECE_PROMOTION_INDEX_COUNT] = { 
+> 			[PIECE_PROMOTION_INDEX_QUEEN] = PIECE_TYPE_INDEX_QUEEN,
+> 			[PIECE_PROMOTION_INDEX_ROOK] = PIECE_TYPE_INDEX_ROOK,
+> 			[PIECE_PROMOTION_INDEX_BISHOP] = PIECE_TYPE_INDEX_BISHOP,
+> 			[PIECE_PROMOTION_INDEX_KNIGHT] = PIECE_TYPE_INDEX_KNIGHT,
+> 			[PIECE_PROMOTION_INDEX_NONE] = PIECE_TYPE_INDEX_NONE
+> 		};
+> 
+> 		uint64_t mask_options = Direct_Rows(RECENT_MOVE.src.side, Mask_Rows(4, 0, 1, 2, 3)) & MASK_COL(Index_AsCol(RECENT_MOVE.dst.index));
+> 		if (MASK_INDEX(CELL_INDEX) & mask_options)
+> 		{
+> 			enable_makeMove = true;
+> 			int row = Index_AsRow(CELL_INDEX);
+> 			PIECE_TYPE_PROMOTION = map_optToType[IF_SIDE(RECENT_MOVE.src.side, PIECE_PROMOTION_INDEX_NONE, row, 7 - row)];
+> 		}
+> 		else
+> 		{
+> 			BoardClick_Phase_ResetAuto();
+> 		}
+> 	}
+> 	if (enable_makeMove)
+> 	{
+> 		enable_makeMove = false;
+> 		{
+> 			BoardClick_Phase_MakeMove();
+> 		}
+> 		{
+> 			Board_Side_Switch();
+> 		}
+> 		{
+> 			BoardClick_Phase_ResetAuto();
+99a363,373
+> CLAY_WASM_EXPORT("Init") void Init()
+> {
+> 	ChessInit_Default();
+> 	StringIndex fen = STRING("rnbqkbn1/pppppppP/4p3/3pP3/pPp5/7p/PPPPPPPP/RNBQKBNR w KQkq d6 0 1");
+> 	ChessInit_FromString(fen);
+> 	// prepare side
+> 	Board_Side_Reset();
+> 	// reset phase
+> 	BoardClick_Phase_ResetAuto();
+> };
+> 
+108,110d381
+< 
+< 
+< 
+134c405
+< 		if (Piece_HasTypeIndex(index, PIECE_TYPE_INDEX_NONE)) continue;
+---
+> 		if (!Piece_IsTypeIndex(Piece_GetTypeIndex(BITBOARD_SET, index))) continue;
+142,143c413,414
+< 					subrectangleWidth * (Piece_GetType(index) - 1),
+< 					subrectangleHeight * (Piece_GetColor(index)),
+---
+> 					subrectangleWidth * (Piece_GetTypeIndex(BITBOARD_SET, index)),
+> 					subrectangleHeight * (Piece_GetSideIndex(BITBOARD_SET, index)),
+151a423,429
+> void BoardHints()
+> {
+> 	for (uint8_t i = 0; i < 64; i++)
+> 	{
+> 	}
+> }
+> 
+154,155d431
+< //	static const Clay_Color colorNone = RGBA(0, 0, 0, 0);
+< 	
+163,178c439,444
+< 		if (IsCellSelectableFunc(index))
+< 		{
+< 			CLAY(CLAY_LAYOUT(SIZING_FIXED(BOARD_CELL_WIDTH, BOARD_CELL_WIDTH)),
+< 				CLAY_RECTANGLE(index == CELL_INDEX ? RGBA(255, 0, 0, 128) : RGBA(0, 0, 0, 0))
+< 			) {
+< 				Clay_OnHover(handle_cell_clickInteraction, index);
+< 			};
+< 		}
+< 		else
+< 		{
+< 			CLAY(CLAY_LAYOUT(SIZING_FIXED(BOARD_CELL_WIDTH, BOARD_CELL_WIDTH)),
+< 				CLAY_RECTANGLE(RGBA(0, 0, 0, 64)));
+< 		}
+< 	}
+< 	{
+< 		listen_cell_click();
+---
+> 		Clay_Color color = IsCellSelectableFunc(index)
+> 			? (index == CELL_INDEX ? RGBA(0, 255, 0, 128) : RGBA(0, 0, 0, 0))
+> 			: (index == CELL_INDEX ? RGBA(255, 0, 0, 128) : RGBA(0, 0, 0, 128));
+> 		CLAY(CLAY_LAYOUT(SIZING_FIXED(BOARD_CELL_WIDTH, BOARD_CELL_WIDTH)),
+> 			CLAY_RECTANGLE(color),
+> 			Clay_OnHover(handle_cell_clickInteraction, index));
+190a457
+> 		BoardHints();
+193a461
+> 		listen_cell_click();
+197,201d464
+< 
+< CLAY_WASM_EXPORT("Init") void Init()
+< {
+< 	ChessInit_Default();
+< };
