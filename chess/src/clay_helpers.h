@@ -61,14 +61,17 @@ Clay_Color Color_AsFaded(Clay_Color color);
 	if (Clay_Hovered(), ##__VA_ARGS__) { CLAY_LABEL("Pressed", __VA_ARGS__2) } \
 	else { CLAY_LABEL(text, __VA_ARGS__2) }
 
-
-#define NORMAL_TEXT(text, ...) \
+#define Normal_Text(string, ...) \
 	textConfig = (Clay_TextElementConfig){COLOR_WHITE, FONT_ID_TEXT, 0.09f * windowSmallSide, .disablePointerEvents = true}; \
 	("empty", ##__VA_ARGS__); \
 	CLAY_TEXT( \
-		CLAY_STRING(text), \
+		string, \
 		CLAY_TEXT_CONFIG(textConfig) \
-	);
+	)
+	
+
+#define NORMAL_TEXT(text, ...) \
+	Normal_Text(CLAY_STRING(text), ##__VA_ARGS__)
 
 typedef struct Clay_BoxColor {
 	Clay_Color fill;
