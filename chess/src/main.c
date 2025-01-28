@@ -16,10 +16,14 @@
 #include "math.h.c"
 
 
-
-
-
-
+typedef enum PiecePromotionIndex : uint8_t {
+	PIECE_PROMOTION_INDEX_QUEEN,
+	PIECE_PROMOTION_INDEX_ROOK,
+	PIECE_PROMOTION_INDEX_BISHOP,
+	PIECE_PROMOTION_INDEX_KNIGHT,
+	PIECE_PROMOTION_INDEX_COUNT,
+	PIECE_PROMOTION_INDEX_NONE,
+} PiecePromotionIndex;
 
 
 CLAY_WASM_EXPORT("Init") void Init();
@@ -99,7 +103,7 @@ void BoardClick_Phase_SelectSource()
 	if (MASK_INDEX_SIGNED(INDEX_INPUT) & MOVABLES_BITBOARD)
 	{
 		INDEX_SRC = INDEX_INPUT;
-		ATTACKS_BITBOARD = Mask_Attacks_KingIsSafeAfter(BITBOARD_SET, Piece_Get(BITBOARD_SET, INDEX_SRC));
+		ATTACKS_BITBOARD = Mask_Attacks_KingIsSafeAfter(BITBOARD_SET, Piece_New(BITBOARD_SET, INDEX_SRC));
 		SELECTABLES_BITBOARD = &ATTACKS_BITBOARD;
 	}
 }
@@ -248,7 +252,7 @@ void BoardPieceSprites()
 		const uint8_t index = row * 8 + col;
 		if (MASK_INDEX(index) & occupied)
 		{
-			Piece piece = Piece_Get(BITBOARD_SET, index);
+			Piece piece = Piece_New(BITBOARD_SET, index);
 			CLAY(CLAY_LAYOUT(SIZING_FIXED(BOARD_CELL_WIDTH, BOARD_CELL_WIDTH)),
 				CLAY_FLOATING({.offset={col * BOARD_CELL_WIDTH, row * BOARD_CELL_WIDTH}})
 			)
