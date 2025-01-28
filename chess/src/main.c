@@ -85,20 +85,25 @@ const PieceTypeIndex MAP_PROMOTION_OPT_TO_TYPE[PIECE_PROMOTION_INDEX_COUNT] = {
 	[PIECE_PROMOTION_INDEX_KNIGHT] = PIECE_TYPE_INDEX_KNIGHT,
 };
 
+Game* GAME;
+
 CLAY_WASM_EXPORT("Init") void Init()
 {
-	// precomputes
-	Precompute_SlidingPiece_RayIndexes();
-
+	ChessArena arena;
+	ChessArena_Init(&arena);
+	GAME = (Game*)ChessArena_Allocate(&arena, sizeof(Game));
 	// init game
-	ChessInit_Default();
+	Game_New(GAME);
 	StringIndex fen = STRING("rnbqkbn1/pppppppP/4p3/3pP3/pPp5/7p/PPPPPPPP/RNBQKBNR w KQkq d6 0 1");
 	fen = STRING("rnbqkbn1/ppPppppP/4p3/4P3/8/2p3PN/PpPPpP1P/RNBQKB1R b KQq - 0 1");
 
-	ChessInit_FromString(fen, CHESS_INIT_DEFAULT_PARAMS);
-	ChessInit_Default();
+	Game_New_FromFen(GAME, fen);
+	Game_New(GAME);
 
 	BoardClick_Phase_Reset(true);
+	
+	// precomputes
+	Precompute_SlidingPiece_RayIndexes();
 };
 
 uint64_t Mask_PromotionOptions(Bitboards_All bitboardSet, uint64_t index, Move move)
@@ -112,7 +117,7 @@ void BoardClick_Phase_SelectSource()
 	if (MASK_INDEX_SIGNED(INDEX_INPUT) & MOVABLES_BITBOARD)
 	{
 		INDEX_SRC = INDEX_INPUT;
-		ATTACKS_BITBOARD = Mask_Attacks_KingIsSafeAfter(BITBOARD_SET, Piece_New(BITBOARD_SET, INDEX_SRC), &EN_PASSANT_TARGET_INDEX, CASTLING_RIGHTS);
+		ATTACKS_BITBOARD = Mask_Attacks_KingIsSafeAfter(GAME, Piece_New(GAME->bitboardSet, INDEX_SRC));
 		SELECTABLES_BITBOARD = &ATTACKS_BITBOARD;
 	}
 }
@@ -129,7 +134,7 @@ void BoardClick_Phase_Reset(bool hasMadeMove)
 	if (hasMadeMove)
 	{
 		INDEX_INPUT = -1;
-		MOVABLES_BITBOARD = Mask_Movables(BITBOARD_SET, ACTIVE_SIDE, &EN_PASSANT_TARGET_INDEX, CASTLING_RIGHTS, Mask_Attacks_KingIsSafeAfter);
+		MOVABLES_BITBOARD = Mask_Movables(GAME, GAME->side_active, Mask_Attacks_KingIsSafeAfter);
 	}
 }
 
@@ -159,7 +164,7 @@ void BoardClick()
 			enable_makeMove = true;
 			// set move if valid
 			INDEX_DST = INDEX_INPUT;
-			MOVE_TEMP = Move_New(BITBOARD_SET, INDEX_SRC, INDEX_DST);
+			MOVE_TEMP = Move_New(GAME->bitboardSet, INDEX_SRC, INDEX_DST);
 			{
 				// to trigger pawn promotion option selection
 				if (MOVE_TEMP.src.type == PIECE_TYPE_INDEX_PAWN)
@@ -168,7 +173,7 @@ void BoardClick()
 					{
 						enable_makeMove = false;
 						INDEX_PROMOTION_OPTION = MOVE_TEMP.dst.index;
-						PROMOTION_OPTS_BITBOARD = Mask_PromotionOptions(BITBOARD_SET, INDEX_PROMOTION_OPTION, MOVE_TEMP);
+						PROMOTION_OPTS_BITBOARD = Mask_PromotionOptions(GAME->bitboardSet, INDEX_PROMOTION_OPTION, MOVE_TEMP);
 						//IsCellSelectableFunc = Piece_IsPromotionOpt;
 						SELECTABLES_BITBOARD = &PROMOTION_OPTS_BITBOARD;
 					}
@@ -188,7 +193,7 @@ void BoardClick()
 		{
 			enable_makeMove = true;
 			int row = Index_AsRow(INDEX_INPUT);
-			PIECE_TYPE_PROMOTION = IF_SIDE(MOVE_TEMP.src.side,
+			MOVE_TEMP.type_promotion = IF_SIDE(MOVE_TEMP.src.side,
 				PIECE_TYPE_INDEX_NONE,
 				MAP_PROMOTION_OPT_TO_TYPE[row],
 				MAP_PROMOTION_OPT_TO_TYPE[7 - row]);
@@ -201,7 +206,7 @@ void BoardClick()
 	if (enable_makeMove)
 	{
 		enable_makeMove = false;
-		Game_MakeMove(BITBOARD_SET, MOVE_TEMP, &ACTIVE_SIDE, &EN_PASSANT_TARGET_INDEX, &PIECE_TYPE_PROMOTION, CASTLING_RIGHTS, &FULL_MOVE_COUNTER, &HALF_MOVE_COUNTER);
+		Game_MakeMove(GAME, MOVE_TEMP);
 		MOVE_RECENT = MOVE_TEMP;
 		// reset click phase
 		BoardClick_Phase_Reset(true);
@@ -254,14 +259,14 @@ void BoardPieceSprite(uint8_t row, uint8_t col)
 
 void BoardPieceSprites()
 {
-	const uint64_t occupied = MASK_ALL(BITBOARD_SET);
+	const uint64_t occupied = MASK_ALL(GAME->bitboardSet);
 	for (uint8_t row = 0; row < 8; row++)
 	for (uint8_t col = 0; col < 8; col++)
 	{
 		const uint8_t index = row * 8 + col;
 		if (MASK_INDEX(index) & occupied)
 		{
-			Piece piece = Piece_New(BITBOARD_SET, index);
+			Piece piece = Piece_New(GAME->bitboardSet, index);
 			CLAY(CLAY_LAYOUT(SIZING_FIXED(BOARD_CELL_WIDTH, BOARD_CELL_WIDTH)),
 				CLAY_FLOATING({.offset={col * BOARD_CELL_WIDTH, row * BOARD_CELL_WIDTH}})
 			)
@@ -326,9 +331,9 @@ Clay_RenderCommandArray CreateLayout()
 		CLAY(0)
 		{
 			NORMAL_TEXT("Half Moves: ", textConfig.textColor = COLOR_BLACK);
-			Normal_Text(Clay__IntToString(HALF_MOVE_COUNTER), textConfig.textColor = COLOR_BLACK);
+			Normal_Text(Clay__IntToString(GAME->counter_halfMove), textConfig.textColor = COLOR_BLACK);
 			NORMAL_TEXT("Full Moves: ", textConfig.textColor = COLOR_BLACK);
-			Normal_Text(Clay__IntToString(FULL_MOVE_COUNTER), textConfig.textColor = COLOR_BLACK);
+			Normal_Text(Clay__IntToString(GAME->counter_fullMove), textConfig.textColor = COLOR_BLACK);
 		}
 	}
 	{

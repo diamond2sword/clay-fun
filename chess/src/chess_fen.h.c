@@ -8,9 +8,9 @@
 
 #pragma once
 
-int ChessInit_FromString(StringIndex fen, Bitboards_All bitboardSet, PieceSideIndex* side_active, CastlingRights castlingRights, int8_t* index_enPassantTarget, uint16_t* halfMoveCounter, uint16_t* fullMoveCounter);
-#define CHESS_INIT_DEFAULT_PARAMS BITBOARD_SET, &ACTIVE_SIDE, CASTLING_RIGHTS, &EN_PASSANT_TARGET_INDEX, &HALF_MOVE_COUNTER, &FULL_MOVE_COUNTER
-#define ChessInit_Default() ChessInit_FromString(STRING("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"), CHESS_INIT_DEFAULT_PARAMS)
+int Game_New_FromFen(Game* game, StringIndex fen);
+#define FEN_DEFAULT STRING("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+int Game_New(Game* game);
 
 PieceTypeIndex PieceTypeIndex_FromChar(char c);
 #define PieceSideIndex_FromChar(c) \
@@ -18,11 +18,14 @@ PieceTypeIndex PieceTypeIndex_FromChar(char c);
 	? PIECE_SIDE_INDEX_NONE : isCapitalChar(c) \
 	? PIECE_SIDE_INDEX_WHITE : PIECE_SIDE_INDEX_BLACK)
 
-int ChessInit_FromString(StringIndex fen, Bitboards_All bitboardSet, PieceSideIndex* side_active, CastlingRights castlingRights, int8_t* index_enPassantTarget, uint16_t* halfMoveCounter, uint16_t* fullMoveCounter)
+int Game_New(Game* game)
 {
-	
+	return Game_New_FromFen(game, FEN_DEFAULT);
+}
+
+int Game_New_FromFen(Game* game, StringIndex fen)
+{
 	StringIndex fieldIndexes[6] = {0};
-	
 	// FEN
 	{
 		uint8_t n_fields = 0, start_i = 0,  c = fen.chars[0], prev_c = 0;
@@ -54,7 +57,7 @@ int ChessInit_FromString(StringIndex fen, Bitboards_All bitboardSet, PieceSideIn
 		//reset
 		for (uint8_t i = 0; i < PIECE_SIDE_INDEX_COUNT; i++) 
 		for (uint8_t j = 0; j < PIECE_TYPE_INDEX_COUNT; j++) 
-		bitboardSet[i][j] = MASK_EMPTY;
+		game->bitboardSet[i][j] = MASK_EMPTY;
 
 		const StringIndex field = fieldIndexes[0];
 
@@ -72,7 +75,7 @@ int ChessInit_FromString(StringIndex fen, Bitboards_All bitboardSet, PieceSideIn
 			if (PieceTypeIndex_FromChar(c) == PIECE_TYPE_INDEX_NONE) {
 				err(return 1, "not a char for piece type", err_var("%c", c));
 			}
-			BitboardSet_Put(bitboardSet, row * 8 + col, PieceSideIndex_FromChar(c), PieceTypeIndex_FromChar(c));
+			BitboardSet_Put(game->bitboardSet, row * 8 + col, PieceSideIndex_FromChar(c), PieceTypeIndex_FromChar(c));
 			col++;
 
 			if (i + 1 == field.length || field.chars[i + 1] == '/') {
@@ -94,7 +97,7 @@ int ChessInit_FromString(StringIndex fen, Bitboards_All bitboardSet, PieceSideIn
 			err(return 1, "not a char for piece color", err_var("%c", c));
 		}
 		//ACTIVE_COLOR = c == 'w' ? PIECE_COLOR_WHITE : PIECE_COLOR_BLACK;
-		*side_active = c == 'w' ? PIECE_SIDE_INDEX_WHITE : PIECE_SIDE_INDEX_BLACK;
+		game->side_active = c == 'w' ? PIECE_SIDE_INDEX_WHITE : PIECE_SIDE_INDEX_BLACK;
 	}
 
 	// FIELD 2
@@ -114,10 +117,14 @@ int ChessInit_FromString(StringIndex fen, Bitboards_All bitboardSet, PieceSideIn
 				}
 
 				switch (c) {
-				case 'K': castlingRights[PIECE_SIDE_INDEX_WHITE][CASTLING_SIDE_KING] = true; break;
-				case 'Q': castlingRights[PIECE_SIDE_INDEX_WHITE][CASTLING_SIDE_QUEEN] = true; break;
-				case 'k': castlingRights[PIECE_SIDE_INDEX_BLACK][CASTLING_SIDE_KING] = true; break;
-				case 'q': castlingRights[PIECE_SIDE_INDEX_BLACK][CASTLING_SIDE_QUEEN] = true; break;
+				case 'K': game->castlingRights[PIECE_SIDE_INDEX_WHITE]
+					[CASTLING_SIDE_KING] = true; break;
+				case 'Q': game->castlingRights[PIECE_SIDE_INDEX_WHITE]
+					[CASTLING_SIDE_QUEEN] = true; break;
+				case 'k': game->castlingRights[PIECE_SIDE_INDEX_BLACK]
+					[CASTLING_SIDE_KING] = true; break;
+				case 'q': game->castlingRights[PIECE_SIDE_INDEX_BLACK]
+					[CASTLING_SIDE_QUEEN] = true; break;
 				}
 			}
 			for (uint8_t i = 0; i < castlingSides.length; i++)
@@ -150,7 +157,7 @@ int ChessInit_FromString(StringIndex fen, Bitboards_All bitboardSet, PieceSideIn
 			if (!ContainsChar(rank, ranks)) {
 				err(return 1, "does not represent a rank", {err_var("%c", rank); err_var("%.*s", ranks.chars, ranks.length)});
 			}
-			*index_enPassantTarget = file - 'a' + (7 - (rank - '1')) * 8;
+			game->index_enPassantTarget = file - 'a' + (7 - (rank - '1')) * 8;
 		}
 	}
 	
@@ -174,26 +181,29 @@ int ChessInit_FromString(StringIndex fen, Bitboards_All bitboardSet, PieceSideIn
 				numbers[j] += (c - '0') * offset;
 			}
 		}
-		*halfMoveCounter = numbers[0];
-		*fullMoveCounter = numbers[1];
+		game->counter_halfMove = numbers[0];
+		game->counter_fullMove = numbers[1];
 	}
-	
 	#ifdef CHESS_VERBOSE
 	for (uint8_t i = 0; i < 6; i++)
 	{
 		err_varn("%.*s", fieldIndexes[i].chars, fieldIndexes[i].length);
 	}
-	err_varn("%d", *index_enPassantTarget);
-	err_varn("%d", *halfMoveCounter);
-	err_varn("%d", *fullMoveCounter);
-	Bitboard_PrintType(bitboardSet, KING);
-	Bitboard_PrintType(bitboardSet, QUEEN);
-	Bitboard_PrintType(bitboardSet, BISHOP);
-	Bitboard_PrintType(bitboardSet, KNIGHT);
-	Bitboard_PrintType(bitboardSet, ROOK);
-	Bitboard_PrintType(bitboardSet, PAWN);
-	Bitboard_PrintSide(bitboardSet, WHITE);
-	Bitboard_PrintSide(bitboardSet, BLACK);
+	err_varn("%d", game->index_enPassantTarget);
+	err_varn("%d", game->counter_halfMove);
+	err_varn("%d", game->counter_fullMove);
+	err_varn("%d", game->castlingRights[PIECE_SIDE_INDEX_WHITE][CASTLING_SIDE_KING]);
+	err_varn("%d", game->castlingRights[PIECE_SIDE_INDEX_WHITE][CASTLING_SIDE_QUEEN]);
+	err_varn("%d", game->castlingRights[PIECE_SIDE_INDEX_BLACK][CASTLING_SIDE_KING]);
+	err_varn("%d", game->castlingRights[PIECE_SIDE_INDEX_BLACK][CASTLING_SIDE_QUEEN]);
+	Bitboard_PrintType(game->bitboardSet, KING);
+	Bitboard_PrintType(game->bitboardSet, QUEEN);
+	Bitboard_PrintType(game->bitboardSet, BISHOP);
+	Bitboard_PrintType(game->bitboardSet, KNIGHT);
+	Bitboard_PrintType(game->bitboardSet, ROOK);
+	Bitboard_PrintType(game->bitboardSet, PAWN);
+	Bitboard_PrintSide(game->bitboardSet, WHITE);
+	Bitboard_PrintSide(game->bitboardSet, BLACK);
 	#endif // CHESS_VERBOSE
 	return 0;
 }

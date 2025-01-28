@@ -11,21 +11,6 @@
 #ifndef CHESS_HEADER
 #define CHESS_HEADER
 
-
-
-
-
-
-// Public API for BIT_BOARD
-
-
-
-
-
-
-
-
-
 #endif // CHESS_HEADER
 
 
@@ -35,19 +20,15 @@
 #include "math.h.c"
 #include "chess_typedefs.h.c"
 #include "chess_make_move.h.c"
+#include "chess_mask_attacks.h.c"
 #include "chess_sliders.h.c"
 #include "chess_accessors.h.c"
 #include "chess_mask.h.c"
-#include "chess_mask_attacks.h.c"
 #include "chess_helpers.h.c"
 #include "chess_fen.h.c"
+#include "chess_err.h.c"
+#include "chess_arena.h.c"
 
-Bitboards_All BITBOARD_SET;
-PieceSideIndex ACTIVE_SIDE = PIECE_SIDE_INDEX_WHITE;
-CastlingRights CASTLING_RIGHTS;
-int8_t EN_PASSANT_TARGET_INDEX = -1;
-uint16_t HALF_MOVE_COUNTER = 0;
-uint16_t FULL_MOVE_COUNTER = 1;
 #endif // CHESS_IMPLEMENTATION
 
 
@@ -57,6 +38,16 @@ uint16_t FULL_MOVE_COUNTER = 1;
 #undef CHESS_MAIN
 int main(int argc, char * argv[])
 {
-	return ChessInit_FromString((StringIndex){argv[1], Stringlength(argv[1])}, CHESS_INIT_DEFAULT_PARAMS);	
+	ChessArena arena;
+	ChessArena_Init(&arena);
+	Game* game = (Game*)ChessArena_Allocate(&arena, sizeof(Game));
+	if (argc == 1)
+	{
+		return Game_New(game);
+	}
+	else
+	{
+		return Game_New_FromFen(game, (StringIndex){argv[1], Stringlength(argv[1])});
+	}
 }
 #endif // CHESS_MAIN

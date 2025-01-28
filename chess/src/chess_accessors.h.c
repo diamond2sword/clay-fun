@@ -30,7 +30,8 @@ Move Move_New(Bitboards_All bitboardSet, uint8_t srcIndex, uint8_t dstIndex)
 {
 	return (Move){
 		Piece_New(bitboardSet, srcIndex),
-		Piece_New(bitboardSet, dstIndex)};
+		Piece_New(bitboardSet, dstIndex),
+		PIECE_TYPE_INDEX_NONE};
 }
 
 PieceSideIndex Piece_GetSideIndex(Bitboards_All bitboardSet, uint8_t index)
