@@ -1,5 +1,24 @@
+//#define CHESS_VERBOSE
+#include "chess_typedefs.h.c"
+#include "chess_helpers.h.c"
+#include "chess_err.h.c"
+#include "chess_mask.h.c"
+#include "chess_game.h.c"
+#include "chess_err.h.c"
 
-int ChessInit_FromString(StringIndex fen)
+#pragma once
+
+int ChessInit_FromString(StringIndex fen, Bitboards_All bitboardSet, PieceSideIndex* side_active, CastlingRights castlingRights, int8_t* index_enPassantTarget, uint16_t* halfMoveCounter, uint16_t* fullMoveCounter);
+#define CHESS_INIT_DEFAULT_PARAMS BITBOARD_SET, &ACTIVE_SIDE, CASTLING_RIGHTS, &EN_PASSANT_TARGET_INDEX, &HALF_MOVE_COUNTER, &FULL_MOVE_COUNTER
+#define ChessInit_Default() ChessInit_FromString(STRING("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"), CHESS_INIT_DEFAULT_PARAMS)
+
+PieceTypeIndex PieceTypeIndex_FromChar(char c);
+#define PieceSideIndex_FromChar(c) \
+	(PieceTypeIndex_FromChar(c) == PIECE_TYPE_INDEX_NONE \
+	? PIECE_SIDE_INDEX_NONE : isCapitalChar(c) \
+	? PIECE_SIDE_INDEX_WHITE : PIECE_SIDE_INDEX_BLACK)
+
+int ChessInit_FromString(StringIndex fen, Bitboards_All bitboardSet, PieceSideIndex* side_active, CastlingRights castlingRights, int8_t* index_enPassantTarget, uint16_t* halfMoveCounter, uint16_t* fullMoveCounter)
 {
 	
 	StringIndex fieldIndexes[6] = {0};
@@ -35,7 +54,7 @@ int ChessInit_FromString(StringIndex fen)
 		//reset
 		for (uint8_t i = 0; i < PIECE_SIDE_INDEX_COUNT; i++) 
 		for (uint8_t j = 0; j < PIECE_TYPE_INDEX_COUNT; j++) 
-		BITBOARD_SET[i][j] = MASK_EMPTY;
+		bitboardSet[i][j] = MASK_EMPTY;
 
 		const StringIndex field = fieldIndexes[0];
 
@@ -53,7 +72,7 @@ int ChessInit_FromString(StringIndex fen)
 			if (PieceTypeIndex_FromChar(c) == PIECE_TYPE_INDEX_NONE) {
 				err(return 1, "not a char for piece type", err_var("%c", c));
 			}
-			BitboardSet_Put(BITBOARD_SET, row * 8 + col, PieceSideIndex_FromChar(c), PieceTypeIndex_FromChar(c));
+			BitboardSet_Put(bitboardSet, row * 8 + col, PieceSideIndex_FromChar(c), PieceTypeIndex_FromChar(c));
 			col++;
 
 			if (i + 1 == field.length || field.chars[i + 1] == '/') {
@@ -75,7 +94,7 @@ int ChessInit_FromString(StringIndex fen)
 			err(return 1, "not a char for piece color", err_var("%c", c));
 		}
 		//ACTIVE_COLOR = c == 'w' ? PIECE_COLOR_WHITE : PIECE_COLOR_BLACK;
-		ACTIVE_SIDE = c == 'w' ? PIECE_SIDE_INDEX_WHITE : PIECE_SIDE_INDEX_BLACK;
+		*side_active = c == 'w' ? PIECE_SIDE_INDEX_WHITE : PIECE_SIDE_INDEX_BLACK;
 	}
 
 	// FIELD 2
@@ -95,10 +114,10 @@ int ChessInit_FromString(StringIndex fen)
 				}
 
 				switch (c) {
-				case 'K': CASTLING_RIGHTS[PIECE_SIDE_INDEX_WHITE][CASTLING_SIDE_KING] = true; break;
-				case 'Q': CASTLING_RIGHTS[PIECE_SIDE_INDEX_WHITE][CASTLING_SIDE_QUEEN] = true; break;
-				case 'k': CASTLING_RIGHTS[PIECE_SIDE_INDEX_BLACK][CASTLING_SIDE_KING] = true; break;
-				case 'q': CASTLING_RIGHTS[PIECE_SIDE_INDEX_BLACK][CASTLING_SIDE_QUEEN] = true; break;
+				case 'K': castlingRights[PIECE_SIDE_INDEX_WHITE][CASTLING_SIDE_KING] = true; break;
+				case 'Q': castlingRights[PIECE_SIDE_INDEX_WHITE][CASTLING_SIDE_QUEEN] = true; break;
+				case 'k': castlingRights[PIECE_SIDE_INDEX_BLACK][CASTLING_SIDE_KING] = true; break;
+				case 'q': castlingRights[PIECE_SIDE_INDEX_BLACK][CASTLING_SIDE_QUEEN] = true; break;
 				}
 			}
 			for (uint8_t i = 0; i < castlingSides.length; i++)
@@ -131,7 +150,7 @@ int ChessInit_FromString(StringIndex fen)
 			if (!ContainsChar(rank, ranks)) {
 				err(return 1, "does not represent a rank", {err_var("%c", rank); err_var("%.*s", ranks.chars, ranks.length)});
 			}
-			EN_PASSANT_TARGET_INDEX = file - 'a' + (7 - (rank - '1')) * 8;
+			*index_enPassantTarget = file - 'a' + (7 - (rank - '1')) * 8;
 		}
 	}
 	
@@ -155,11 +174,8 @@ int ChessInit_FromString(StringIndex fen)
 				numbers[j] += (c - '0') * offset;
 			}
 		}
-		HALF_MOVE_COUNTER = numbers[0];
-		FULL_MOVE_COUNTER = numbers[1];
-		if (FULL_MOVE_COUNTER < 1) {
-			err(return 1, "full move counter must be greater than zero", err_var("%d", FULL_MOVE_COUNTER));
-		}
+		*halfMoveCounter = numbers[0];
+		*fullMoveCounter = numbers[1];
 	}
 	
 	#ifdef CHESS_VERBOSE
@@ -167,17 +183,17 @@ int ChessInit_FromString(StringIndex fen)
 	{
 		err_varn("%.*s", fieldIndexes[i].chars, fieldIndexes[i].length);
 	}
-	err_varn("%d", EN_PASSANT_TARGET_INDEX);
-	err_varn("%d", HALF_MOVE_COUNTER);
-	err_varn("%d", FULL_MOVE_COUNTER);
-	Bitboard_PrintType(KING);
-	Bitboard_PrintType(QUEEN);
-	Bitboard_PrintType(BISHOP);
-	Bitboard_PrintType(KNIGHT);
-	Bitboard_PrintType(ROOK);
-	Bitboard_PrintType(PAWN);
-	Bitboard_PrintSide(WHITE);
-	Bitboard_PrintSide(BLACK);
+	err_varn("%d", *index_enPassantTarget);
+	err_varn("%d", *halfMoveCounter);
+	err_varn("%d", *fullMoveCounter);
+	Bitboard_PrintType(bitboardSet, KING);
+	Bitboard_PrintType(bitboardSet, QUEEN);
+	Bitboard_PrintType(bitboardSet, BISHOP);
+	Bitboard_PrintType(bitboardSet, KNIGHT);
+	Bitboard_PrintType(bitboardSet, ROOK);
+	Bitboard_PrintType(bitboardSet, PAWN);
+	Bitboard_PrintSide(bitboardSet, WHITE);
+	Bitboard_PrintSide(bitboardSet, BLACK);
 	#endif // CHESS_VERBOSE
 	return 0;
 }

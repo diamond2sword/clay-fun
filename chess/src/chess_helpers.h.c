@@ -21,6 +21,7 @@ uint32_t Stringlength(const char * string);
 #define IN_RANGE(x, min, max) ((x) >= (min) && (x) <= (max))
 #define IF_IN_RANGE(x, min, max, forTrue, forFalse) (IN_RANGE((x), (min), (max)) ? (forTrue) : (forFalse))
 #define IF_SIDE(side, forNone, forWhite, forBlack) ((side) == PIECE_SIDE_INDEX_NONE ? (forNone) : (side) == PIECE_SIDE_INDEX_WHITE ? (forWhite) : (forBlack))
+#define SIDE_NEGATE(side) IF_SIDE(side, side, PIECE_SIDE_INDEX_BLACK, PIECE_SIDE_INDEX_WHITE)
 	
 // Strings
 #define __STRING_LENGTH(s) ((sizeof(s) / sizeof((s)[0])) - sizeof((s)[0]))
@@ -79,3 +80,4 @@ void CastlingRights_Copy(CastlingRights castlingRights_src, CastlingRights castl
 			castlingRights_src[side][castlingSide];
 	}
 }
+

@@ -1,3 +1,4 @@
+#include "chess_fen.h.c"
 #include <stdarg.h>
 
 #define CLAY_HELPERS_IMPLEMENTATION
@@ -27,6 +28,8 @@ typedef enum PiecePromotionIndex : uint8_t {
 
 
 CLAY_WASM_EXPORT("Init") void Init();
+
+uint64_t Mask_PromotionOptions(Bitboards_All bitboardSet, uint64_t index, Move move);
 
 void BoardClick_Phase_Reset(bool hasMadeMove);
 void BoardClick_Phase_SelectSource();
@@ -91,12 +94,17 @@ CLAY_WASM_EXPORT("Init") void Init()
 	StringIndex fen = STRING("rnbqkbn1/pppppppP/4p3/3pP3/pPp5/7p/PPPPPPPP/RNBQKBNR w KQkq d6 0 1");
 	fen = STRING("rnbqkbn1/ppPppppP/4p3/4P3/8/2p3PN/PpPPpP1P/RNBQKB1R b KQq - 0 1");
 
-	ChessInit_FromString(fen);
+	ChessInit_FromString(fen, CHESS_INIT_DEFAULT_PARAMS);
 	ChessInit_Default();
 
 	BoardClick_Phase_Reset(true);
 };
 
+uint64_t Mask_PromotionOptions(Bitboards_All bitboardSet, uint64_t index, Move move)
+{
+	uint64_t mask_options = Direct_Rows(move.src.side, Mask_Rows(4, 0, 1, 2, 3) & MASK_COL(Index_AsCol(move.dst.index)));
+	return mask_options;
+}
 
 void BoardClick_Phase_SelectSource()
 {

@@ -32,18 +32,18 @@
 
 
 #ifdef CHESS_VERBOSE
-	void Bitboard_Print(uint64_t bitboard);
-	#define Bitboard_PrintType(typeToken) { \
+	void Bitboard_Print(uint64_t bitboardSet);
+	#define Bitboard_PrintType(bitboardSet, typeToken) { \
 		printf("%s:\n", #typeToken); \
-		Bitboard_Print(MASK_TYPE(BITBOARD_SET, typeToken)); \
+		Bitboard_Print(MASK_TYPE(bitboardSet, typeToken)); \
 	}
-	#define Bitboard_PrintSide(sideToken) { \
+	#define Bitboard_PrintSide(bitboardSet, sideToken) { \
 		printf("%s:\n", #sideToken); \
-		Bitboard_Print(MASK_SIDE(BITBOARD_SET, sideToken)); \
+		Bitboard_Print(MASK_SIDE(bitboardSet, sideToken)); \
 	}
-	#define Bitboard_PrintPiece(sideToken, typeToken) { \
+	#define Bitboard_PrintPiece(bitboardSet, sideToken, typeToken) { \
 		printf("%s.%s:\n", #sideToken, #typeToken); \
-		Bitboard_Print(MASK_PIECE(BITBOARD_SET, sideToken, typeToken)); \
+		Bitboard_Print(MASK_PIECE(bitboardSet, sideToken, typeToken)); \
 	}
 #else
 	#define Bitboard_PrintType(...)
@@ -53,14 +53,14 @@
 
 
 #ifdef CHESS_VERBOSE
-void Bitboard_Print(uint64_t bitboard)
+void Bitboard_Print(uint64_t bitboardSet)
 {
 	for (uint8_t row = 0; row < 8; row++)
 	{
 		for (uint8_t col = 0; col < 8; col++)
 		{
 			uint8_t index = row * 8 + col;
-			StringIndex token = MASK_INDEX(index) & bitboard
+			StringIndex token = MASK_INDEX(index) & bitboardSet
 				? STRING("x") : STRING("-");
 			printf("%3.*s", token.length, token.chars);
 		}
