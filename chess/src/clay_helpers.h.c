@@ -1,6 +1,7 @@
 //#define CLAY_HELPERS_IMPLEMENTATION
 
-#include "web_clay.h"
+#include "web_clay.h.c"
+#include "math.h.c"
 
 #ifndef CLAY_HELPERS
 #define CLAY_HELPERS
@@ -115,6 +116,7 @@ void Helpers_Update(float width, float height)
 	windowWidth = width;
 	windowHeight = height;
 	windowLongSide = MAX(windowWidth, windowHeight);
+
 	windowSmallSide = MIN(windowWidth, windowHeight);
 	isPortrait = windowWidth < windowHeight;
 	lineWidth = 0.025f * windowSmallSide;

@@ -3,7 +3,7 @@
 #include "chess_helpers.h.c"
 #include "chess_err.h.c"
 #include "chess_mask.h.c"
-#include "chess_game.h.c"
+#include "chess_make_move.h.c"
 #include "chess_err.h.c"
 
 #pragma once

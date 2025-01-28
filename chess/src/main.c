@@ -1,5 +1,6 @@
-#include "chess_fen.h.c"
+
 #include <stdarg.h>
+
 
 #define CLAY_HELPERS_IMPLEMENTATION
 #include "clay_helpers.h.c"
@@ -111,7 +112,7 @@ void BoardClick_Phase_SelectSource()
 	if (MASK_INDEX_SIGNED(INDEX_INPUT) & MOVABLES_BITBOARD)
 	{
 		INDEX_SRC = INDEX_INPUT;
-		ATTACKS_BITBOARD = Mask_Attacks_KingIsSafeAfter(BITBOARD_SET, Piece_New(BITBOARD_SET, INDEX_SRC));
+		ATTACKS_BITBOARD = Mask_Attacks_KingIsSafeAfter(BITBOARD_SET, Piece_New(BITBOARD_SET, INDEX_SRC), &EN_PASSANT_TARGET_INDEX, CASTLING_RIGHTS);
 		SELECTABLES_BITBOARD = &ATTACKS_BITBOARD;
 	}
 }
@@ -128,7 +129,7 @@ void BoardClick_Phase_Reset(bool hasMadeMove)
 	if (hasMadeMove)
 	{
 		INDEX_INPUT = -1;
-		MOVABLES_BITBOARD = Mask_Movables(BITBOARD_SET, ACTIVE_SIDE, Mask_Attacks_KingIsSafeAfter);
+		MOVABLES_BITBOARD = Mask_Movables(BITBOARD_SET, ACTIVE_SIDE, &EN_PASSANT_TARGET_INDEX, CASTLING_RIGHTS, Mask_Attacks_KingIsSafeAfter);
 	}
 }
 

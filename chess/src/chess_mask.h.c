@@ -1,6 +1,10 @@
-#include <stdint.h>
 #include "chess_typedefs.h.c"
 #include "chess_helpers.h.c"
+#include "math.h.c"
+
+
+#include <stdint.h>
+#include <stdarg.h>
 
 #pragma once
 
@@ -66,6 +70,9 @@ uint64_t Direct_Rows(PieceSideIndex side, uint64_t mask);
 #define OFFSET_DOWN 8
 #define OFFSET_LEFT -1
 #define OFFSET_RIGHT 1
+
+MASK_INDEX_VA_ARGS(Mask_Rows, MASK_ROW);
+MASK_INDEX_VA_ARGS(Mask_Cols, MASK_COL);
 
 uint64_t Direct_Rows(PieceSideIndex side, uint64_t mask)
 {

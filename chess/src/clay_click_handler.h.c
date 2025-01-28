@@ -6,8 +6,6 @@
 #ifndef CLAY_CLICK_HANDLER_HEADER
 #define CLAY_CLICK_HANDLER_HEADER
 
-#define MAX(a, b) (a > b ? a : b)
-#define MIN(a, b) (a > b ? b : a)
 
 #define CLICK_IS(name, phase_token) (clickHandler_##name##_clickPhase == CLICK_PHASE_##phase_token)
 #define CLICK_SET(name, phase_token) (clickHandler_##name##_clickPhase = CLICK_PHASE_##phase_token)
