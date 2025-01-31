@@ -16,18 +16,18 @@
 
 
 #ifdef CHESS_IMPLEMENTATION
-#undef CHESS_IMPLEMENTATION
-#include "math.h.c"
-#include "chess_typedefs.h.c"
-#include "chess_make_move.h.c"
-#include "chess_mask_attacks.h.c"
-#include "chess_sliders.h.c"
-#include "chess_accessors.h.c"
-#include "chess_mask.h.c"
-#include "chess_helpers.h.c"
-#include "chess_fen.h.c"
-#include "chess_err.h.c"
-#include "chess_arena.h.c"
+#include "chess/chess_typedefs.h.c"
+#include "chess/chess_make_move.h.c"
+#include "chess/chess_mask_attacks.h.c"
+#include "chess/chess_sliders.h.c"
+#include "chess/chess_accessors.h.c"
+#include "chess/chess_mask.h.c"
+#include "chess/chess_helpers.h.c"
+#include "chess/chess_fen.h.c"
+#include "chess/chess_err.h.c"
+#include "chess/chess_arena.h.c"
+#include "chess/chess_board_clicker.h.c"
+#include "chess/chess_arena.h.c"
 
 #endif // CHESS_IMPLEMENTATION
 

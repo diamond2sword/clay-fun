@@ -2324,14 +2324,14 @@ void Clay__SizeContainersAlongAxis(bool xAxis) {
     }
 }
 
-Clay_String Clay__IntToString(int32_t integer) {
+Clay_String Clay__IntToString(int64_t integer) {
     if (integer == 0) {
         return CLAY__INIT(Clay_String) { .length = 1, .chars = "0" };
     }
     Clay_Context* context = Clay_GetCurrentContext();
     char *chars = (char *)(context->dynamicStringData.internalArray + context->dynamicStringData.length);
-    int32_t length = 0;
-    int32_t sign = integer;
+    int64_t length = 0;
+    int64_t sign = integer;
 
     if (integer < 0) {
         integer = -integer;
@@ -2346,7 +2346,7 @@ Clay_String Clay__IntToString(int32_t integer) {
     }
 
     // Reverse the string to get the correct order
-    for (int32_t j = 0, k = length - 1; j < k; j++, k--) {
+    for (int64_t j = 0, k = length - 1; j < k; j++, k--) {
         char temp = chars[j];
         chars[j] = chars[k];
         chars[k] = temp;

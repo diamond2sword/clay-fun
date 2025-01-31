@@ -3,7 +3,10 @@
 
 #pragma once
 
+#ifndef CHESS_ARENA_SIZE
 #define CHESS_ARENA_SIZE 65536
+#endif
+
 typedef struct ChessArena {
 	char* begin;
 	char* end;
@@ -18,12 +21,12 @@ void ChessArena_Init(ChessArena* arena)
 	arena->current = arena->begin;
 }
 
-void* ChessArena_Allocate(ChessArena* arena, size_t size)
+void* ChessArena_Allocate(ChessArena* arena, uint32_t size)
 {
-	if (arena->current + size > arena->end)
+	err_scope(if (arena->current + size > arena->end)
 	{
-		err(return NULL, "out of memory");
-	}
+		err(return 0, "out of memory");
+	})
 	void* memory_allocated = arena->current;
 	arena->current += size;
 	return memory_allocated;

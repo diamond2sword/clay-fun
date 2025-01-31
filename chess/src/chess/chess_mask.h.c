@@ -1,6 +1,6 @@
 #include "chess_typedefs.h.c"
 #include "chess_helpers.h.c"
-#include "math.h.c"
+#include "../math.h.c"
 
 
 #include <stdint.h>
@@ -23,7 +23,7 @@
 #define MASK_TYPE(bitboardSet, typeToken) Mask_Type(bitboardSet, PIECE_TYPE_INDEX_##typeToken)
 #define MASK_SIDE(bitboardSet, sideToken) \
 	Mask_Side(bitboardSet, PIECE_SIDE_INDEX_##sideToken)
-#define Mask_Piece(bitboardSet, side, type) bitboardSet[side][type]
+#define Mask_Piece(bitboardSet, side, type) (*bitboardSet)[side][type]
 #define Mask_Type(bitboardSet, type) \
 	(Mask_Piece(bitboardSet, PIECE_SIDE_INDEX_WHITE, type) | \
 	 Mask_Piece(bitboardSet, PIECE_SIDE_INDEX_BLACK, type))

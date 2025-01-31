@@ -24,6 +24,7 @@ Clay_Color Color_AsFaded(Clay_Color color);
 
 #define SIZING_GROW(...) (Clay_Sizing){CLAY_SIZING_GROW(__VA_ARGS__), CLAY_SIZING_GROW(__VA_ARGS__)}
 
+#define SIZING_FIT(...) (Clay_Sizing){CLAY_SIZING_FIT(__VA_ARGS__), CLAY_SIZING_FIT(__VA_ARGS__)}
 
 #define CHILD_ALIGN(x, y) (Clay_ChildAlignment){CLAY_ALIGN_X_##x, CLAY_ALIGN_Y_##y}
 #define ATTACH_POINTS(element, parent) (Clay_FloatingAttachPoints){CLAY_ATTACH_POINT_##element, CLAY_ATTACH_POINT_##parent}
@@ -38,9 +39,9 @@ Clay_Color Color_AsFaded(Clay_Color color);
 #define CLAY_BOX(elementId, __VA_ARGS__2, ...) \
 	CLAY( \
 		elementId, \
-		boxConfig = (Clay_BoxElementConfig){{COLOR_NONE, COLOR_NONE}, {lineWidth, lineWidth}}, \
+		boxConfig = (Clay_BoxElementConfig){{COLOR_NONE, COLOR_NONE}, {LINE_WIDTH, LINE_WIDTH}}, \
 		__VA_ARGS__2, \
-		layoutConfig = (Clay_LayoutConfig){sizingGrow, CLAY_PADDING_ALL(boxConfig.sizing.border)}, \
+		layoutConfig = (Clay_LayoutConfig){SIZING_GROW(), CLAY_PADDING_ALL(boxConfig.sizing.border)}, \
 		rectangleConfig = (Clay_RectangleElementConfig){boxConfig.color.fill, CLAY_CORNER_RADIUS(boxConfig.sizing.corner)}, \
 		##__VA_ARGS__, \
 		CLAY_BORDER_OUTSIDE_RADIUS(boxConfig.sizing.border, boxConfig.color.border, boxConfig.sizing.corner), \
@@ -49,7 +50,7 @@ Clay_Color Color_AsFaded(Clay_Color color);
 	) 
 
 #define CLAY_LABEL(text, ...) \
-	rectangleConfig = (Clay_RectangleElementConfig){Color_AsFaded(COLOR_BLACK), CLAY_CORNER_RADIUS(lineWidth)}; \
+	rectangleConfig = (Clay_RectangleElementConfig){Color_AsFaded(COLOR_BLACK), CLAY_CORNER_RADIUS(LINE_WIDTH)}; \
 	floatingConfig = (Clay_FloatingElementConfig){.pointerCaptureMode=CLAY_POINTER_CAPTURE_MODE_PASSTHROUGH}; \
 	CLAY( \
 		CLAY_IDI("ClayLabel", CLAY_LABEL_INDEX++), \
@@ -65,7 +66,7 @@ Clay_Color Color_AsFaded(Clay_Color color);
 	else { CLAY_LABEL(text, __VA_ARGS__2) }
 
 #define Normal_Text(string, ...) \
-	textConfig = (Clay_TextElementConfig){COLOR_WHITE, FONT_ID_TEXT, 0.09f * windowSmallSide, .disablePointerEvents = true}; \
+	textConfig = (Clay_TextElementConfig){COLOR_WHITE, FONT_ID_TEXT, FONT_SIZE, .disablePointerEvents = true}; \
 	("empty", ##__VA_ARGS__); \
 	CLAY_TEXT( \
 		string, \
@@ -102,7 +103,8 @@ Clay_RectangleElementConfig rectangleConfig;
 Clay_FloatingElementConfig floatingConfig;
 Clay_TextElementConfig textConfig;
 
-float lineWidth;
+float LINE_WIDTH;
+float FONT_SIZE;
 uint32_t CLAY_LABEL_INDEX = 0;
 const uint32_t FONT_ID_TEXT = 0;
 double windowWidth = 1024, windowHeight = 768;
@@ -119,7 +121,8 @@ void Helpers_Update(float width, float height)
 
 	windowSmallSide = MIN(windowWidth, windowHeight);
 	isPortrait = windowWidth < windowHeight;
-	lineWidth = 0.025f * windowSmallSide;
+	LINE_WIDTH = 0.025f * windowSmallSide;
+	FONT_SIZE = 0.05f * windowSmallSide;
 }
 
 Clay_Color Color_AsFaded(Clay_Color color) 

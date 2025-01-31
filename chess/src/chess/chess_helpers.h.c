@@ -1,6 +1,5 @@
 #include <stdint.h>
 #include <stdbool.h>
-#include "chess_typedefs.h.c"
 
 #pragma once
 
@@ -62,22 +61,44 @@ uint32_t Stringlength(const char * string)
 	return length;
 }
 
-void Bitboards_All_Copy(Bitboards_All bitboardSet_src, Bitboards_All bitboardSet_dst)
-{
-	for (uint8_t side = 0; side < PIECE_SIDE_INDEX_COUNT; side++)
-	for (uint8_t type = 0; type < PIECE_TYPE_INDEX_COUNT; type++)
-	{
-		bitboardSet_dst[side][type] = bitboardSet_src[side][type];
-	}
+#define T bool
+#define __Def_Array_CopyTo(T) \
+void __Array_##T##_Copy(T* src_first, T* src_last, T* dst_first) \
+{ \
+	for (; src_first != src_last; src_first++, dst_first++) \
+	{ \
+		*dst_first = *src_first; \
+	} \
 }
 
-void CastlingRights_Copy(CastlingRights castlingRights_src, CastlingRights castlingRights_dst)
-{
-	for (uint8_t side = 0; side < PIECE_SIDE_INDEX_COUNT; side++)
-	for (uint8_t castlingSide = 0; castlingSide < CASTLING_SIDE_COUNT; castlingSide++)
-	{
-		castlingRights_dst[side][castlingSide] = 
-			castlingRights_src[side][castlingSide];
-	}
+#define __Def_Array_Equals(T) \
+bool __Array_##T##_Equals(T* src_first, T* src_last, T* dst_first) \
+{ \
+	for (; src_first != src_last; src_first++, dst_first++) \
+	{ \
+		if(*src_first != *dst_first) \
+		{ \
+			return false; \
+		} \
+	} \
+	return true; \
 }
 
+
+#define ARRAY_2(T, cmd, src_first, dst_first) (__INIT(__Array_##T##_##cmd)((T*)(src_first), (T*)(src_first) + sizeof(src_first)/sizeof(T), (T*)(dst_first)))
+
+
+__Def_Array_Equals(bool);
+__Def_Array_CopyTo(bool);
+__Def_Array_CopyTo(uint64_t);
+
+#define __Def_Array_Set(T) \
+void Array_##T##_Set(T* first, T* last, T value) \
+{ \
+	for (; first != last; first++) \
+	{ \
+		*first = value; \
+	} \
+}
+
+__Def_Array_Set(uint64_t);

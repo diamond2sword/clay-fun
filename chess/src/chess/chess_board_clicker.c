@@ -1,11 +1,13 @@
-#define CHESS_IMPLEMENTATION
 #define CHESS_VERBOSE
-#include "chess.h.c"
+#define CHESS_IMPLEMENTATION
+#include "../chess.h.c"
+
 
 Game* GAME;
 BoardClicker* BOARD_CLICKER;
 Map_GameToHashKeys* MAP_GAME_TO_HASH_KEYS;
-int main(int argc, char * argv[])
+
+int main()
 {
 	ChessArena arena;
 	ChessArena_Init(&arena);
@@ -19,4 +21,7 @@ int main(int argc, char * argv[])
 	Bitboard_PrintMask(BOARD_CLICKER->bitboard_movables);
 
 	Precompute_SlidingPiece_RayIndexes();
+
+	return 0;
+
 }

@@ -1,5 +1,8 @@
 //#define CLAY_CLICK_HANDLER_IMPLEMENTATION
 
+#include "web_clay.h.c"
+#include "math.h.c"
+
 #include <stdint.h>
 #include <stdbool.h>
 

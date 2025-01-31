@@ -4,7 +4,6 @@
 #include "chess_make_move.h.c"
 #include "chess_helpers.h.c"
 #include "chess_sliders.h.c"
-#include "chess_fen.h.c"
 
 #include <stdint.h>
 
@@ -39,44 +38,40 @@ uint64_t Mask_Movables(Game* game, PieceSideIndex side, uint64_t (*maskMovesFunc
 	return mask_result;
 }
 
-
 uint64_t Mask_Attacks_KingIsSafeAfter(Game* game, Piece piece)
 {
 	PieceSideIndex side_inactive = SIDE_NEGATE(piece.side);
 	uint64_t mask_attacks = Mask_Attacks(game, piece);
 
+	Bitboards_All bitboardSet_temp;
+	Game game_temp;
+	game->bitboardSet = &bitboardSet_temp;
 
 	for (uint8_t index_dst = 0; index_dst < 64; index_dst++)
 	{
 		uint64_t mask_dst = MASK_INDEX(index_dst);
 		if (mask_dst & mask_attacks)
 		{
-			static Game* game_temp;
-			/*
-			game_temp->counter_halfMove = game->counter_fullMove;
-			game_temp->counter_fullMove = game->counter_fullMove;
-			game_temp->index_enPassantTarget = game->index_enPassantTarget;
-			CastlingRights_Copy(game->castlingRights, game_temp->castlingRights);
-			*/
-			Bitboards_All_Copy(game->bitboardSet, game_temp->bitboardSet);
-			Game_MakeMove(game_temp, Move_New(game_temp->bitboardSet, piece.index, index_dst));
+			ARRAY_2(uint64_t, Copy, *game->bitboardSet, game_temp.bitboardSet);
+			Move move_mock = Move_New(game_temp.bitboardSet, piece.index, index_dst);
+			Game_MakeMove(&game_temp, move_mock, false);
 			{
 				// simulate king being two if in castling
 				if (piece.type == PIECE_TYPE_INDEX_KING)
 				{
 					if (index_dst == piece.index + OFFSET_LEFT * 2)
 					{
-						BitboardSet_Put(game_temp->bitboardSet, piece.index + OFFSET_LEFT, piece.side, piece.type);
-						BitboardSet_Put(game_temp->bitboardSet, piece.index, piece.side, piece.type);
+						Bitboards_All_Put(game_temp.bitboardSet, piece.index + OFFSET_LEFT, piece.side, piece.type);
+						Bitboards_All_Put(game_temp.bitboardSet, piece.index, piece.side, piece.type);
 					} else if (index_dst == piece.index + OFFSET_RIGHT * 2)
 					{
-						BitboardSet_Put(game_temp->bitboardSet, piece.index + OFFSET_RIGHT, piece.side, piece.type);
-						BitboardSet_Put(game_temp->bitboardSet, piece.index, piece.side, piece.type);
+						Bitboards_All_Put(game_temp.bitboardSet, piece.index + OFFSET_RIGHT, piece.side, piece.type);
+						Bitboards_All_Put(game_temp.bitboardSet, piece.index, piece.side, piece.type);
 					}
 				}
 			}
 			//if (Mask_Attacks_InCheck(bitboardSet_temp, side_inactive))
-			if (Mask_Movables(game_temp, side_inactive, Mask_Attacks_OnEnemyKing))
+			if (Mask_Movables(&game_temp, side_inactive, Mask_Attacks_OnEnemyKing))
 			{
 				mask_attacks &= ~mask_dst;
 			}
@@ -117,8 +112,10 @@ uint64_t Mask_Attacks(Game* game, Piece piece)
 		uint64_t mask_singleLeft = MASK_INDEX(piece.index + OFFSET_LEFT) & ~mask_occupied;
 		uint64_t mask_singleRight = MASK_INDEX(piece.index + OFFSET_RIGHT) & ~mask_occupied;
 		uint64_t mask_singleRight_rook = MASK_INDEX(piece.index + OFFSET_LEFT * 3) & ~mask_occupied;
-		uint64_t mask_castle_queenSide = (game->castlingRights[piece.side][CASTLING_SIDE_QUEEN] && mask_singleLeft && mask_singleRight_rook) ? MASK_INDEX(piece.index + OFFSET_LEFT * 2) & ~mask_occupied : MASK_EMPTY;
-		uint64_t mask_castle_kingSide = (game->castlingRights[piece.side][CASTLING_SIDE_KING]	&& mask_singleRight) ? MASK_INDEX(piece.index + OFFSET_RIGHT * 2) & ~mask_occupied : MASK_EMPTY;
+		uint64_t mask_canCastle_left = (MASK_ROW(row) & MASK_COL(0)) & game->mask_castlingRights;
+		uint64_t mask_canCastle_right = (MASK_ROW(row) & MASK_COL(7)) & game->mask_castlingRights;
+		uint64_t mask_castle_queenSide = (mask_canCastle_left && mask_singleLeft && mask_singleRight_rook) ? MASK_INDEX(piece.index + OFFSET_LEFT * 2) & ~mask_occupied : MASK_EMPTY;
+		uint64_t mask_castle_kingSide = (mask_canCastle_right && mask_singleRight) ? MASK_INDEX(piece.index + OFFSET_RIGHT * 2) & ~mask_occupied : MASK_EMPTY;
 		return mask_singleStep | mask_castle_queenSide | mask_castle_kingSide;
 	} case PIECE_TYPE_INDEX_KNIGHT: {
 		return ((Mask_Rows(2, row - 1, row + 1) & Mask_Cols(2, col - 2 , col + 2)) | (Mask_Rows(2, row - 2, row + 2) & Mask_Cols(2, col - 1, col + 1)))
