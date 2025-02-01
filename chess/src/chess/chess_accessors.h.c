@@ -9,24 +9,24 @@
 	? Piece_GetSideIndex(bitboardSet, index) == side : false)
 #define Piece_HasTypeIndex(bitboardSet, index, type) (Piece_IsTypeIndex(type) \
 	? Piece_GetTypeIndex(bitboardSet, index) == type : false)
-PieceSideIndex Piece_GetSideIndex(Bitboards_All* bitboardSet, uint8_t index);
-PieceTypeIndex Piece_GetTypeIndex(Bitboards_All* bitboardSet, uint8_t index);
+PieceSideIndex Piece_GetSideIndex(BitboardSet* bitboardSet, uint8_t index);
+PieceTypeIndex Piece_GetTypeIndex(BitboardSet* bitboardSet, uint8_t index);
 
 #define Piece_IsSideIndex(side) ((side >= 0 && side < PIECE_SIDE_INDEX_COUNT) || side == PIECE_SIDE_INDEX_NONE)
 #define Piece_IsTypeIndex(type) ((type >= 0 && type < PIECE_TYPE_INDEX_COUNT) || type == PIECE_TYPE_INDEX_NONE)
 
-Piece Piece_New(Bitboards_All* bitboardSet, uint8_t index);
-Move Move_New(Bitboards_All* bitboardSet, uint8_t srcIndex, uint8_t dstIndex);
+Piece Piece_New(BitboardSet* bitboardSet, uint8_t index);
+Move Move_New(BitboardSet* bitboardSet, uint8_t srcIndex, uint8_t dstIndex);
 
 
-Piece Piece_New(Bitboards_All* bitboardSet, uint8_t index)
+Piece Piece_New(BitboardSet* bitboardSet, uint8_t index)
 {
 	return (Piece){index,
 		Piece_GetSideIndex(bitboardSet, index),
 		Piece_GetTypeIndex(bitboardSet, index)};
 }
 
-Move Move_New(Bitboards_All* bitboardSet, uint8_t srcIndex, uint8_t dstIndex)
+Move Move_New(BitboardSet* bitboardSet, uint8_t srcIndex, uint8_t dstIndex)
 {
 	return (Move){
 		Piece_New(bitboardSet, srcIndex),
@@ -34,7 +34,7 @@ Move Move_New(Bitboards_All* bitboardSet, uint8_t srcIndex, uint8_t dstIndex)
 		PIECE_TYPE_INDEX_NONE};
 }
 
-PieceSideIndex Piece_GetSideIndex(Bitboards_All* bitboardSet, uint8_t index)
+PieceSideIndex Piece_GetSideIndex(BitboardSet* bitboardSet, uint8_t index)
 {
 	uint64_t mask = MASK_INDEX(index);
 	if (mask & MASK_SIDE(bitboardSet, WHITE)) return PIECE_SIDE_INDEX_WHITE;
@@ -43,7 +43,7 @@ PieceSideIndex Piece_GetSideIndex(Bitboards_All* bitboardSet, uint8_t index)
 }
 
 
-PieceTypeIndex Piece_GetTypeIndex(Bitboards_All* bitboardSet, uint8_t index)
+PieceTypeIndex Piece_GetTypeIndex(BitboardSet* bitboardSet, uint8_t index)
 {
 	static const PieceTypeIndex types[PIECE_TYPE_INDEX_COUNT] = {
 		PIECE_TYPE_INDEX_KING,

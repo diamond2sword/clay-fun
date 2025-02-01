@@ -33,7 +33,7 @@ typedef enum PieceRayIndex : uint8_t {
 
 typedef uint64_t Map_DirectionToRayMask[PIECE_RAY_INDEX_COUNT][64];
 
-void Precompute_SlidingPiece_RayIndexes(ChessArena* arena);
+void Chess__Precompute_SlidingPiece_RayIndexes(ChessArena* arena);
 uint64_t Mask_Attacks_Sliding(uint64_t mask_occupied, uint8_t index, int32_t ray_count, ...);
 
 const uint8_t MAP_RAY_TO_OFFSET[PIECE_RAY_INDEX_COUNT] = {
@@ -59,9 +59,9 @@ const bool MAP_RAY_MUST_BIT_SCAN_FORWARD[PIECE_RAY_INDEX_COUNT] = {
 
 Map_DirectionToRayMask* MAP_DIRECTION_TO_RAY_MASK;
 
-void Precompute_SlidingPiece_RayIndexes(ChessArena* arena)
+void Chess__Precompute_SlidingPiece_RayIndexes(ChessArena* arena)
 {
-	MAP_DIRECTION_TO_RAY_MASK = (Map_DirectionToRayMask*)ChessArena_Allocate(arena, sizeof(Map_DirectionToRayMask));
+	MAP_DIRECTION_TO_RAY_MASK = (Map_DirectionToRayMask*)ChessArena__Allocate(arena, sizeof(Map_DirectionToRayMask));
 	for (uint8_t ray = 0; ray < PIECE_RAY_INDEX_COUNT; ray++)
 	{
 		int8_t offset = MAP_RAY_TO_OFFSET[ray];

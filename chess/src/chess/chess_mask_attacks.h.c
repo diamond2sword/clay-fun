@@ -43,16 +43,16 @@ uint64_t Mask_Attacks_KingIsSafeAfter(Game* game, Piece piece)
 	PieceSideIndex side_inactive = SIDE_NEGATE(piece.side);
 	uint64_t mask_attacks = Mask_Attacks(game, piece);
 
-	Bitboards_All bitboardSet_temp;
+	BitboardSet bitboardSet_temp;
 	Game game_temp;
-	game->bitboardSet = &bitboardSet_temp;
+	game_temp.bitboardSet = &bitboardSet_temp;
 
 	for (uint8_t index_dst = 0; index_dst < 64; index_dst++)
 	{
 		uint64_t mask_dst = MASK_INDEX(index_dst);
 		if (mask_dst & mask_attacks)
 		{
-			ARRAY_2(uint64_t, Copy, *game->bitboardSet, game_temp.bitboardSet);
+			ARRAY_2(uint64_t, Copy, game->bitboardSet->pieces, game_temp.bitboardSet->pieces);
 			Move move_mock = Move_New(game_temp.bitboardSet, piece.index, index_dst);
 			Game_MakeMove(&game_temp, move_mock, false);
 			{
@@ -61,12 +61,12 @@ uint64_t Mask_Attacks_KingIsSafeAfter(Game* game, Piece piece)
 				{
 					if (index_dst == piece.index + OFFSET_LEFT * 2)
 					{
-						Bitboards_All_Put(game_temp.bitboardSet, piece.index + OFFSET_LEFT, piece.side, piece.type);
-						Bitboards_All_Put(game_temp.bitboardSet, piece.index, piece.side, piece.type);
+						BitboardSet_Put(game_temp.bitboardSet, piece.index + OFFSET_LEFT, piece.side, piece.type);
+						BitboardSet_Put(game_temp.bitboardSet, piece.index, piece.side, piece.type);
 					} else if (index_dst == piece.index + OFFSET_RIGHT * 2)
 					{
-						Bitboards_All_Put(game_temp.bitboardSet, piece.index + OFFSET_RIGHT, piece.side, piece.type);
-						Bitboards_All_Put(game_temp.bitboardSet, piece.index, piece.side, piece.type);
+						BitboardSet_Put(game_temp.bitboardSet, piece.index + OFFSET_RIGHT, piece.side, piece.type);
+						BitboardSet_Put(game_temp.bitboardSet, piece.index, piece.side, piece.type);
 					}
 				}
 			}

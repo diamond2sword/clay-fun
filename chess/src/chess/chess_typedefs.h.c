@@ -42,19 +42,21 @@ typedef struct Map_GameToHashKeys {
 	uint64_t side;
 } Map_GameToHashKeys;
 
-typedef struct Table_Hash {
+typedef struct List_Hash {
 	uint64_t begin[MAX_REPEATABLE];
 	uint64_t* end;
 	uint64_t* current;
-} Table_Hash;
+} List_Hash;
 
 typedef uint64_t Bitboards_Side[PIECE_TYPE_INDEX_COUNT];
 typedef Bitboards_Side Bitboards_All[PIECE_SIDE_INDEX_COUNT];
+typedef struct BitboardSet {
+	Bitboards_All pieces;
+} BitboardSet;
 
 typedef struct Game {
-	Bitboards_All* bitboardSet;
-	Table_Hash* table_hash;
-	Map_GameToHashKeys* map_gameToHashKeys;
+	BitboardSet* bitboardSet;
+	List_Hash* list_hash;
 	uint64_t mask_castlingRights;
 	uint16_t counter_fullMove;
 	uint16_t counter_halfMove;
@@ -62,7 +64,6 @@ typedef struct Game {
 	int8_t index_enPassantTarget;
 	PieceSideIndex side_active;
 } Game;
-
 
 typedef enum PieceInstructionType : uint8_t {
 	PIECE_INSTRUCTION_TYPE_REMOVE,

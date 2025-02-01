@@ -67,7 +67,7 @@ int Game_Set_FromFen(Game* game, StringIndex fen)
 		//reset
 		for (uint8_t i = 0; i < PIECE_SIDE_INDEX_COUNT; i++) 
 		for (uint8_t j = 0; j < PIECE_TYPE_INDEX_COUNT; j++) 
-		(*game->bitboardSet)[i][j] = MASK_EMPTY;
+		game->bitboardSet->pieces[i][j] = MASK_EMPTY;
 
 		const StringIndex field = fieldIndexes[0];
 
@@ -85,7 +85,7 @@ int Game_Set_FromFen(Game* game, StringIndex fen)
 			if (PieceTypeIndex_FromChar(c) == PIECE_TYPE_INDEX_NONE) {
 				err_scope(err(return 1, "not a char for piece type", err_var("%c", c)));
 			}
-			Bitboards_All_Put(game->bitboardSet, row * 8 + col, PieceSideIndex_FromChar(c), PieceTypeIndex_FromChar(c));
+			BitboardSet_Put(game->bitboardSet, row * 8 + col, PieceSideIndex_FromChar(c), PieceTypeIndex_FromChar(c));
 			col++;
 
 			if (i + 1 == field.length || field.chars[i + 1] == '/') {
@@ -186,6 +186,7 @@ int Game_Set_FromFen(Game* game, StringIndex fen)
 		game->counter_halfMove = numbers[0];
 		game->counter_fullMove = numbers[1];
 	}
+	#ifdef CHESS_VERBOSE_IMPLEMENTATION
 	err_scope(
 		for (uint8_t i = 0; i < 6; i++)
 		{
@@ -204,6 +205,7 @@ int Game_Set_FromFen(Game* game, StringIndex fen)
 		Bitboard_PrintSide(game->bitboardSet, WHITE);
 		Bitboard_PrintSide(game->bitboardSet, BLACK);
 	);
+	#endif // CHESS_VERBOSE_IMPLEMENTATION
 	return 0;
 }
 

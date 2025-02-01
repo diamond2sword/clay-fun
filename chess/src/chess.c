@@ -2,21 +2,31 @@
 #define CHESS_VERBOSE
 #include "chess.h.c"
 
-Game* GAME;
+void click(BoardClicker* boardClicker, uint8_t x, uint8_t y)
+{
+	if (IN_RANGE(x, 0, 7) && IN_RANGE(y, 0, 7))
+	{
+		boardClicker->index_input = y * 8 + x;
+		BoardClicker_Click(boardClicker);
+	}
+}
+
 BoardClicker* BOARD_CLICKER;
-Map_GameToHashKeys* MAP_GAME_TO_HASH_KEYS;
 int main(int argc, char * argv[])
 {
 	ChessArena arena;
 	ChessArena_Init(&arena);
-	MAP_GAME_TO_HASH_KEYS = Map_GameToHashKeys_New(&arena, 0x292bcd82efba82bfULL);
-	GAME = Game_New(&arena, MAP_GAME_TO_HASH_KEYS);
-	BOARD_CLICKER = BoardClicker_New(&arena, GAME);
-	Game_FromFen_Default(GAME);
-	Game_Hash_Compute(GAME);
-	BoardClicker_Phase_Reset(BOARD_CLICKER, true);
-	
-	Bitboard_PrintMask(BOARD_CLICKER->bitboard_movables);
+	Chess_Init(&arena);
+	Game* game = Game_New(&arena, Game_Set_FromFen_Default);
+	BOARD_CLICKER = BoardClicker_New(&arena, game);
 
-	Precompute_SlidingPiece_RayIndexes();
+	click(BOARD_CLICKER, 0, 6);
+	Bitboard_PrintMask(BOARD_CLICKER->bitboard_attacks);
+	click(BOARD_CLICKER, 0, 5);
+	click(BOARD_CLICKER, 0, 1);
+	click(BOARD_CLICKER, 0, 2);
+	Bitboard_PrintMask(BOARD_CLICKER->bitboard_movables);
+	
+	ChessArena_Reset(&arena);
+	return 0;
 }

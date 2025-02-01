@@ -21,7 +21,7 @@ void ChessArena_Init(ChessArena* arena)
 	arena->current = arena->begin;
 }
 
-void* ChessArena_Allocate(ChessArena* arena, uint32_t size)
+void* ChessArena__Allocate(ChessArena* arena, uint32_t size)
 {
 	err_scope(if (arena->current + size > arena->end)
 	{

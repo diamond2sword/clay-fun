@@ -1,4 +1,3 @@
-//#define CHESS_VERBOSE
 #pragma once
 #include "chess_err.h.c"
 #include "chess_helpers.h.c"
@@ -13,36 +12,37 @@
 
 
 
-#define BITBOARDS_ALL_PUT(bitboardSet, index, sideToken, typeToken) \
-	Bitboards_All_Put(bitboardSet, index, PIECE_SIDE_INDEX_##sideToken, PIECE_TYPE_INDEX_##typeToken) 
-#define Bitboards_All_PutAttrs(bitboardSet, attrs, indexToken, sideToken, typeToken) Bitboards_All_Put(bitboardSet, attrs.indexToken, attrs.sideToken, attrs.typeToken)
+#define BITBOARD_SET_PUT(bitboardSet, index, sideToken, typeToken) \
+	BitboardSet_Put(bitboardSet, index, PIECE_SIDE_INDEX_##sideToken, PIECE_TYPE_INDEX_##typeToken) 
+#define BitboardSet_PutAttrs(bitboardSet, attrs, indexToken, sideToken, typeToken) BitboardSet_Put(bitboardSet, attrs.indexToken, attrs.sideToken, attrs.typeToken)
 
-#define BITBOARDS_ALL_REMOVE(bitboardSet, index, sideToken, typeToken) \
-	Bitboards_All_Remove(bitboardSet, index, PIECE_SIDE_INDEX_##sideToken, PIECE_TYPE_INDEX_##typeToken) 
-#define Bitboards_All_RemoveAttrs(bitboardSet, attrs, indexToken, sideToken, typeToken) Bitboards_All_Remove(bitboardSet, attrs.indexToken, attrs.sideToken, attrs.typeToken)
-inline void Bitboards_All_Put(Bitboards_All* bitboardSet, uint8_t index, PieceSideIndex side, PieceTypeIndex type);
-inline void Bitboards_All_Remove(Bitboards_All* bitboardSet, uint8_t index, PieceSideIndex side, PieceTypeIndex type);
+#define BITBOARD_SET_REMOVE(bitboardSet, index, sideToken, typeToken) \
+	BitboardSet_Remove(bitboardSet, index, PIECE_SIDE_INDEX_##sideToken, PIECE_TYPE_INDEX_##typeToken) 
+#define BitboardSet_RemoveAttrs(bitboardSet, attrs, indexToken, sideToken, typeToken) BitboardSet_Remove(bitboardSet, attrs.indexToken, attrs.sideToken, attrs.typeToken)
+inline void BitboardSet_Put(BitboardSet* bitboardSet, uint8_t index, PieceSideIndex side, PieceTypeIndex type);
+inline void BitboardSet_Remove(BitboardSet* bitboardSet, uint8_t index, PieceSideIndex side, PieceTypeIndex type);
 
 
 
 
 
 void Game_MakeMove(Game* game, Move move, bool hash_mustUpdate);
-void Game_Hash_Update(Game* game, Instruction* instruction, bool side_changed);
-void Game_Hash_XorSide(Game* game, PieceSideIndex side);
-void Game_Hash_XorPiece(Game* game, Piece piece);
+void Chess__Game_Hash_Update(Game* game, Instruction* instruction, bool side_changed);
+void Chess__Game_Hash_XorSide(Game* game, PieceSideIndex side);
+void Chess__Game_Hash_XorPiece(Game* game, Piece piece);
 inline void Game_Pieces_Update(Game* game, Instruction* instruction);
 inline void Instruction_Append_PutPiece(Instruction* instruction, Piece piece);
 inline void Instruction_Append_RemovePiece(Instruction* instruction, Piece piece);
 inline void Instruction_Append_Piece(Instruction* instruction, PieceInstruction pieceInstruction);
 Game* Game_New(ChessArena* arena, int (*set)(Game*));
-inline void Game_Pieces_Set(Game* game, int (*set)(Game*));
-void Game_Hash_Compute(Game* game);
-void Game_Init(ChessArena* arena);
-void Precompute_Map_GameToHashKeys(ChessArena* arena, uint64_t seed);
+inline void Game_Set(Game* game, int (*set)(Game*));
+void Chess__Game_Hash_Compute(Game* game);
+void Chess_Init(ChessArena* arena);
+void Chess__Precompute_Map_GameToHashKeys(ChessArena* arena, uint64_t seed);
 
 
 Map_GameToHashKeys* MAP_GAME_TO_HASH_KEYS;
+bool CHESS__IS_INITIALIZED = false;
 
 
 void Game_MakeMove(Game* game, Move move, bool hash_mustUpdate)
@@ -163,45 +163,33 @@ void Game_MakeMove(Game* game, Move move, bool hash_mustUpdate)
 		game->side_active = SIDE_NEGATE(game->side_active);
 	}
 	if (hash_mustUpdate) {
-		Game_Hash_Update(game, &instruction, true);
+		Chess__Game_Hash_Update(game, &instruction, true);
 	}
 }
 
-void Game_Hash_Update(Game* game, Instruction* instruction, bool side_changed)
+void Chess__Game_Hash_Update(Game* game, Instruction* instruction, bool side_changed)
 {
 	{
-		uint64_t hash_temp = *game->table_hash->current;
-		game->table_hash->current++;
-		*game->table_hash->current = hash_temp;
+		uint64_t hash_temp = *game->list_hash->current;
+		game->list_hash->current++;
+		*game->list_hash->current = hash_temp;
 	}
 	for (uint8_t i = 0; i < instruction->length; i++)
 	{
-		Game_Hash_XorPiece(game, instruction->pieces[i].piece);
+		Chess__Game_Hash_XorPiece(game, instruction->pieces[i].piece);
 	}
 	if (side_changed)
 	{
-		Game_Hash_XorSide(game, instruction->move.src.side);
+		Chess__Game_Hash_XorSide(game, instruction->move.src.side);
 	}
-}
-
-inline void Game_Hash_XorSide(Game* game, PieceSideIndex side)
-{
-	*game->table_hash->current
-		^= MAP_GAME_TO_HASH_KEYS->side;
-}
-
-inline void Game_Hash_XorPiece(Game* game, Piece piece)
-{
-	*game->table_hash->current
-		^= MAP_GAME_TO_HASH_KEYS->map_piece[piece.side][piece.type][piece.index];
 }
 
 inline void Game_Pieces_Update(Game* game, Instruction* instruction)
 {
 	for (uint8_t i = 0; i < instruction->length; i++)
 		instruction->pieces[i].type == PIECE_INSTRUCTION_TYPE_PUT
-			? Bitboards_All_PutAttrs(game->bitboardSet, instruction->pieces[i].piece, index, side, type)
-			: Bitboards_All_RemoveAttrs(game->bitboardSet, instruction->pieces[i].piece, index, side, type);
+			? BitboardSet_PutAttrs(game->bitboardSet, instruction->pieces[i].piece, index, side, type)
+			: BitboardSet_RemoveAttrs(game->bitboardSet, instruction->pieces[i].piece, index, side, type);
 }
 
 inline void Instruction_Append_PutPiece(Instruction* instruction, Piece piece)
@@ -225,19 +213,45 @@ inline void Instruction_Append_Piece(Instruction* instruction, PieceInstruction 
 }
 
 
-inline void Bitboards_All_Put(Bitboards_All* bitboardSet, uint8_t index, PieceSideIndex side, PieceTypeIndex type)
+inline void BitboardSet_Put(BitboardSet* bitboardSet, uint8_t index, PieceSideIndex side, PieceTypeIndex type)
 {
-	(*bitboardSet)[side][type] |= MASK_INDEX(index);
+	bitboardSet->pieces[side][type] |= MASK_INDEX(index);
 }
 
-inline void Bitboards_All_Remove(Bitboards_All* bitboardSet, uint8_t index, PieceSideIndex side, PieceTypeIndex type)
+inline void BitboardSet_Remove(BitboardSet* bitboardSet, uint8_t index, PieceSideIndex side, PieceTypeIndex type)
 {
-	(*bitboardSet)[side][type] &= ~MASK_INDEX(index);
+	bitboardSet->pieces[side][type] &= ~MASK_INDEX(index);
 }
 
-void Game_Hash_Compute(Game* game)
+Game* Game_New(ChessArena* arena, int (*set)(Game*))
 {
-	*game->table_hash->current = MASK_EMPTY;
+	err_scope(if (!CHESS__IS_INITIALIZED) 
+	{
+		err(return 0, "chess is not initialized");
+	});
+	Game* game = (Game*)ChessArena__Allocate(arena, sizeof(Game));
+	{
+		game->bitboardSet = (BitboardSet*)ChessArena__Allocate(arena, sizeof(BitboardSet));
+	}
+	{
+		game->list_hash = (List_Hash*)ChessArena__Allocate(arena, sizeof(List_Hash));
+		game->list_hash->end = game->list_hash->begin + MAX_REPEATABLE;
+		Array_uint64_t_Set(game->list_hash->begin, game->list_hash->end, MASK_EMPTY);
+		game->list_hash->current = game->list_hash->begin;
+		Game_Set(game, set);
+	}
+	return game;
+}
+
+inline void Game_Set(Game* game, int (*set)(Game*))
+{
+	set(game);
+	Chess__Game_Hash_Compute(game);
+}
+
+void Chess__Game_Hash_Compute(Game* game)
+{
+	*game->list_hash->current = MASK_EMPTY;
 	// xor per piece at index
 	for (uint8_t index = 0; index < 64; index++)
 	{
@@ -246,49 +260,37 @@ void Game_Hash_Compute(Game* game)
 		{
 			continue;
 		}
-		Game_Hash_XorPiece(game, piece);
+		Chess__Game_Hash_XorPiece(game, piece);
 	}
 	{
 		// xor side
-		Game_Hash_XorSide(game, game->side_active);
+		Chess__Game_Hash_XorSide(game, game->side_active);
 	}
 }
 
-
-Game* Game_New(ChessArena* arena, int (*set)(Game*))
+inline void Chess__Game_Hash_XorSide(Game* game, PieceSideIndex side)
 {
-	Game* game = (Game*)ChessArena_Allocate(arena, sizeof(Game));
-	{
-		game->table_hash = (Table_Hash*)ChessArena_Allocate(arena, sizeof(Table_Hash));
-		game->table_hash->end = game->table_hash->begin + MAX_REPEATABLE;
-		Array_uint64_t_Set(game->table_hash->begin, game->table_hash->end, MASK_EMPTY);
-		// leave index-0 as empty
-		game->table_hash->current = game->table_hash->begin;
-	}
-	{
-		game->bitboardSet = (Bitboards_All*)ChessArena_Allocate(arena, sizeof(Bitboards_Side));
-	}
-	Game_Pieces_Set(game, set);
-	return game;
+	*game->list_hash->current
+		^= MAP_GAME_TO_HASH_KEYS->side;
 }
 
-inline void Game_Pieces_Set(Game* game, int (*set)(Game*))
+inline void Chess__Game_Hash_XorPiece(Game* game, Piece piece)
 {
-	set(game);
-	game->table_hash->current = game->table_hash->begin;
-	Game_Hash_Compute(game);
+	*game->list_hash->current
+		^= MAP_GAME_TO_HASH_KEYS->map_piece[piece.side][piece.type][piece.index];
 }
 
-void Game_Init(ChessArena* arena)
+void Chess_Init(ChessArena* arena)
 {
+	CHESS__IS_INITIALIZED = true;
 	// precomputes
-	Precompute_Map_GameToHashKeys(arena, 0x292bcd82efba82bfULL);
-	Precompute_SlidingPiece_RayIndexes(arena);
+	Chess__Precompute_Map_GameToHashKeys(arena, 0x292bcd82efba82bfULL);
+	Chess__Precompute_SlidingPiece_RayIndexes(arena);
 }
 
-void Precompute_Map_GameToHashKeys(ChessArena* arena, uint64_t seed)
+void Chess__Precompute_Map_GameToHashKeys(ChessArena* arena, uint64_t seed)
 {
-	MAP_GAME_TO_HASH_KEYS = (Map_GameToHashKeys*)ChessArena_Allocate(arena, sizeof(Map_GameToHashKeys));
+	MAP_GAME_TO_HASH_KEYS = (Map_GameToHashKeys*)ChessArena__Allocate(arena, sizeof(Map_GameToHashKeys));
 
 	tinymt64_t randomizer;
 	tinymt64_init(&randomizer, seed);

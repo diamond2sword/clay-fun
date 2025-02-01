@@ -1,4 +1,5 @@
 #include "chess_arena.h.c"
+#include "chess_err.h.c"
 #include "chess_mask_attacks.h.c"
 
 #include <stdint.h>
@@ -42,7 +43,7 @@ const PieceTypeIndex MAP_PROMOTION_OPT_TO_TYPE[PIECE_PROMOTION_INDEX_COUNT] = {
 
 BoardClicker* BoardClicker_New(ChessArena* arena, Game* game)
 {
-	BoardClicker* boardClicker = (BoardClicker*)ChessArena_Allocate(arena, sizeof(BoardClicker));
+	BoardClicker* boardClicker = (BoardClicker*)ChessArena__Allocate(arena, sizeof(BoardClicker));
 	boardClicker->game = game;
 	BoardClicker_Phase_Reset(boardClicker, true);
 	return boardClicker;

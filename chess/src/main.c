@@ -44,12 +44,12 @@ double BOARD_CELL_WIDTH;
 
 Game* GAME;
 BoardClicker* BOARD_CLICKER;
-ChessArena arena;
 
 CLAY_WASM_EXPORT("Init") void Init()
 {
+	ChessArena arena;
 	ChessArena_Init(&arena);
-	Game_Init(&arena);
+	Chess_Init(&arena);
 	GAME = Game_New(&arena, Game_Set_FromFen_Default);
 	BOARD_CLICKER = BoardClicker_New(&arena, GAME);
 };
@@ -191,11 +191,11 @@ Clay_RenderCommandArray CreateLayout()
 			if (false) CLAY(0)
 			{
 				NORMAL_TEXT("Current Hash Distance: ", textConfig.textColor = COLOR_BLACK);
-				Normal_Text(Clay__IntToString(GAME->table_hash->current - GAME->table_hash->begin), textConfig.textColor = COLOR_BLACK);
+				Normal_Text(Clay__IntToString(GAME->list_hash->current - GAME->list_hash->begin), textConfig.textColor = COLOR_BLACK);
 			}
 			if (GAME->counter_repeatable > 0)
 			{
-				uint64_t* hash_last = GAME->table_hash->current;
+				uint64_t* hash_last = GAME->list_hash->current;
 				for (uint8_t i = 0; i < GAME->counter_repeatable; i++, hash_last--)
 				CLAY(0)
 				{
