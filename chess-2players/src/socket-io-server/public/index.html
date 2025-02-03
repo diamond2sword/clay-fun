@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Disable Button Example</title>
+</head>
+<body>
+    <button id="actionBtn">Click to disable other client</button>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const btn = document.getElementById('actionBtn');
+        const socket = io();
+
+        // Send "disable" event to server when button is clicked
+        btn.onclick = () => socket.emit('disable');
+
+        // Disable button when "disable" event is received
+        socket.on('disable', () => btn.disabled = true);
+    </script>
+</body>
+</html>
